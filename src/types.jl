@@ -3,11 +3,11 @@
 include("NF.jl")
 import Flux: params, mapleaves, children, mapchildren, @treelike,glorot_uniform,gate,reset!
 import Flux.Tracker: zero_grad!
-mutable struct Particles{T}
-	X::T
-	Z::T
-	Y::T
-end
+#	mutable struct Particles{T}
+#		X::T
+#		Z::T
+#		Y::T
+#	end
 struct FIVOChain{N,R}
 	Nz::N
 	G::R
@@ -19,7 +19,6 @@ struct FIVOChain{N,R}
 	hPrior::Dense
 	hPriorμ::Dense
 	hPriorσ::Dense
-#	S::Particles
 	nsim::Int64
 	nnodes::Int64
 	nlayers::Int64
@@ -27,30 +26,30 @@ struct FIVOChain{N,R}
 	ny::Int64
 	nz::Int64
 
-	function FIVOChain(;nx::Int64=2,ny::Int64=1,nz::Int64=10,nlayers::Int64=4,nnodes::Int64=50,nsim::Int64=4)
+	function FIVOChain(;nx::Int64=2,ny::Int64=2,nz::Int64=10,nlayers::Int64=4,nnodes::Int64=50,nsim::Int64=4)
 		Nz	= NF(nz,nlayers)
-		G 	= GRU(3nnodes,nnodes)
-		yPY 	= Chain(Dense(ny,nnodes,afun),Dense(nnodes,nnodes,afun)) # data
-		zPZ 	= Chain(Dense(nz,nnodes,afun),Dense(nnodes,nnodes,afun)) # latent input
-		xPX	= Chain(Dense(nx,nnodes,afun),Dense(nnodes,nnodes,afun)) # regressor
+		G 	= GRU(3nnodes,nnodes) |> send_effector
+		yPY 	= Chain(Dense(ny,nnodes,afun),Dense(nnodes,nnodes,afun)) |> send_effector# data
+		zPZ 	= Chain(Dense(nz,nnodes,afun),Dense(nnodes,nnodes,afun)) |> send_effector# latent input
+		xPX	= Chain(Dense(nx,nnodes,afun),Dense(nnodes,nnodes,afun)) |> send_effector # regressor
 
 		Pϕ	= Chain(Dense(3nnodes,nnodes,afun),
-				Dense(nnodes,Nz.np))
+				Dense(nnodes,Nz.np)) |> send_effector
 
 		zPθ	= Chain(Dense(2nnodes,nnodes,afun),
-				Dense(nnodes,nnodes,afun),Dense(nnodes,4))
+				Dense(nnodes,nnodes,afun),Dense(nnodes,4)) |> send_effector
 
-		hPprior = Dense(nnodes,nnodes,afun)
-		hPpriorμ = Dense(nnodes,nz)
-		hPpriorσ = Dense(nnodes,nz,NNlib.softplus)
+		hPprior = Dense(nnodes,nnodes,afun)|> send_effector
+		hPpriorμ = Dense(nnodes,nz) |> send_effector
+		hPpriorσ = Dense(nnodes,nz,NNlib.softplus) |> send_effector
 
-		S = Particles(param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)))
+		# S = Particles(param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)))
+
 		new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,
-				   #S,
-				   nsim,nnodes,nlayers,nx,ny,nz)
+						   nsim,nnodes,nlayers,nx,ny,nz)
 	end
 	function FIVOChain(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz)
-		new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz)
+		F = new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz)
 	end
 end
 function squeeze(x)

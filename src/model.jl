@@ -4,16 +4,14 @@ const afun = elu
 ## Cuda ##
 #========#
 if isCu
-	using CuArrays
-	using CUDAnative
 	#import Base: exp,log1p
 	#import StatsFuns:log1pexp,softplus
-	const MainType = Float32s
+	const MainType = Float32
 	function send_effector(x::AbstractArray)
 		isempty(x) ? x : (x |> gpu)
 	end
 	function send_effector(x)
-		x
+		x |> gpu
 	end
 	function send_effector(x::T) where {T<:Union{FIVOChain,Flux.Chain,Flux.Dense}}
 		mapleaves(cu,x)
@@ -24,7 +22,7 @@ if isCu
 else
 	const MainType = Float64
 	function send_effector(x)
-		x
+		x |> cpu
 	end
 end
 
@@ -43,6 +41,7 @@ function (fc::FIVOChain)(RT,C,x)
 	ny	= fc.ny
 	nz	= fc.nz
 
+	reset!(fc.G)
 
 	ntrials = length(RT)
 	accumulated_logw = param(zeros(MainType,1,nsim))
@@ -51,29 +50,35 @@ function (fc::FIVOChain)(RT,C,x)
 	XYZ = [send_effector(param(zeros(MainType,nnodes,nsim))) for k in 1:3]
 	for (rt,c,k) in zip(RT,C,1:ntrials)
 		Yt      = fc.xPX(x[k]) # latent representation of regressors
-		h	= fc.G(vcat(XYZ...)) # map previous regressors, data and latent variable to hidden state of GRU
-		XYZ[2] = repeat(Yt,outer=(1,nsim))
-		D = [rt;c]
-		log_alpha_t = local_lik(h,fc,XYZ,D,nz)
-		log_p_hat_t_summand = log_alpha_t .+ accumulated_logw
-		log_p_hat_t = logsumexp_overflow(log_p_hat_t_summand)
-		L = L + log_p_hat_t
-		accumulated_logw = log_p_hat_t_summand - log_p_hat_t
-		accumulated_logw,h,XYZ[3] = resample(accumulated_logw,h,XYZ[3])
+		h		= fc.G(vcat(XYZ...)) # map previous regressors, data and latent variable to hidden state of GRU
+		XYZ[2] 	= repeat(Yt,outer=(1,nsim))
+		D 		= [rt;c]
+		log_alpha_t 			= local_lik(h,fc,XYZ,D,nz)
+		log_p_hat_t_summand 	= log_alpha_t .+ accumulated_logw
+		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
+		L 						= L + log_p_hat_t
+		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
+		accumulated_logw,XYZ[3] = resample(accumulated_logw,fc.G,XYZ[3])
 	end
 	L/ntrials
 end
-function resample(accumulated_logw,h,z)
+function resample(accumulated_logw,G,z)
 acc_logw_detach = copy(accumulated_logw.data)
 N = length(acc_logw_detach)
 if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
-	a = findfirst(cumsum(exp.(acc_logw_detach)) .> rand())
-	accumulated_logw = -log(N)
-	z = repmat(z[:,a],1,a)
-	h = repmat(h[:,a],1,a)
-	return accumulated_logw,h,z
+	h = G.state
+	if DEBUG
+		print("\nResampling\n")
+		@show acc_logw_detach
+	end
+	a = findfirst(cumsum(exp.(acc_logw_detach[:]),dims=1) .> rand())
+	accumulated_logw = -log(N)*param(ones(1,N))
+	z = repeat(z[:,a],outer=(1,N))
+	h = repeat(h[:,a],outer=(1,N))
+	G.state = h # in place
+	return accumulated_logw,z
 else
-	return accumulated_logw,h,z
+	return accumulated_logw,z
 end
 end
 @inline function local_lik(h,fc,XYZ,D,nz)
@@ -124,7 +129,7 @@ end
 
 """
 function ddm(a,v,w,τ,rt,c)
-	if c != zero(c)
+	if abs(c) == one(c)
 		return SSM.DDM_lpdf(a,v,w,τ,rt,c)
 	else
 		return log(minimum((maximum((one(a)*floatmin(MainType),1 - SSM.DDM_cdf(a,v,w,τ,rt,c))),one(a))))

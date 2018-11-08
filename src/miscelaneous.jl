@@ -1,4 +1,5 @@
-function overflow_prev(y) 
+
+function overflow_prev(y)
 	V=1e10*one(y)
 	return -V<y<V
 end
@@ -30,7 +31,7 @@ logsumexp_overflow(x::TrackedArray) = Tracker.track(logsumexp_overflow,x)
 		L=zero(x[1])
 		∂ = similar(x)
 		for k in eachindex(x)
-			L+=overflow_prev(x[k]) ? (ex = exp(x[k]-mx)) : x[k]<0 ? (ex = zero(x[k])) : begin 
+			L+=overflow_prev(x[k]) ? (ex = exp(x[k]-mx)) : x[k]<0 ? (ex = zero(x[k])) : begin
 				ex = 0.0
 				floatmax()
 			end
@@ -43,8 +44,4 @@ logsumexp_overflow(x::TrackedArray) = Tracker.track(logsumexp_overflow,x)
 		∂ = one.(x)/length(x)
 		return -floatmax(),Δ->(Δ*∂,)
 	end
-end
-macro mainDef(x)
-        y = isdefined(Main,x.args[1]) ? :(const $(x.args[1]) = Main.$(x.args[1])) : Expr(:const,x)
-        esc(y)
 end
