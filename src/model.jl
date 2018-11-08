@@ -8,7 +8,7 @@ if isCu
 	using CUDAnative
 	#import Base: exp,log1p
 	#import StatsFuns:log1pexp,softplus
-	const MainType = Float32
+	const MainType = Float32s
 	function send_effector(x::AbstractArray)
 		isempty(x) ? x : (x |> gpu)
 	end

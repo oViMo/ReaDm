@@ -27,23 +27,23 @@ struct FIVOChain{N,R}
 	ny::Int64
 	nz::Int64
 
-	function FIVOChain(nx::Int64,ny::Int64,nz::Int64,nlayers::Int64,nnodes::Int64,nsim::Int64)
+	function FIVOChain(;nx::Int64=2,ny::Int64=1,nz::Int64=10,nlayers::Int64=4,nnodes::Int64=50,nsim::Int64=4)
 		Nz	= NF(nz,nlayers)
 		G 	= GRU(3nnodes,nnodes)
 		yPY 	= Chain(Dense(ny,nnodes,afun),Dense(nnodes,nnodes,afun)) # data
 		zPZ 	= Chain(Dense(nz,nnodes,afun),Dense(nnodes,nnodes,afun)) # latent input
 		xPX	= Chain(Dense(nx,nnodes,afun),Dense(nnodes,nnodes,afun)) # regressor
-		
+
 		Pϕ	= Chain(Dense(3nnodes,nnodes,afun),
 				Dense(nnodes,Nz.np))
-		
+
 		zPθ	= Chain(Dense(2nnodes,nnodes,afun),
 				Dense(nnodes,nnodes,afun),Dense(nnodes,4))
 
 		hPprior = Dense(nnodes,nnodes,afun)
 		hPpriorμ = Dense(nnodes,nz)
 		hPpriorσ = Dense(nnodes,nz,NNlib.softplus)
-		
+
 		S = Particles(param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)))
 		new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,
 				   #S,
