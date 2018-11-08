@@ -18,4 +18,3 @@ include("miscelaneous.jl")
 include("model.jl")
 
 end # module
-git add * ; git commit -m "init" ; git push --set-upstream origin master
