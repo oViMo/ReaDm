@@ -1,7 +1,7 @@
 
-function overflow_prev(y)
-	V=1e10*one(y)
-	return -V<y<V
+function overflow_prev(x)
+	V=1e10*one(x)
+	return -V<x<V
 end
 function logsumexp_overflow(x)
 	if any(overflow_prev,x)
@@ -22,8 +22,8 @@ function logsumexp_overflow_naive(x)
 	return L
 end
 logsumexp_overflow(x::TrackedArray) = Tracker.track(logsumexp_overflow,x)
-@grad function logsumexp_overflow(xx)
-	x = data(xx)
+@grad function logsumexp_overflow(x_diff)
+	x = data(x_diff)
 	if any(overflow_prev,x)
 		mx=all(overflow_prev,x) ? maximum(x) : begin
 			maximum(x[overflow_prev.(x)])
@@ -48,7 +48,7 @@ end
 
 elinf(L) = L==-Inf ? -floatmax() : L
 @grad function elinf(L)
-	d = L.data
+	d = data(L)
 	return elinf(d),Δ->(Δ,)
 end
 elinf(x::TrackedReal) = Tracker.track(elinf,x)
