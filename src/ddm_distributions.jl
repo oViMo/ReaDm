@@ -112,7 +112,7 @@ else
 end
 end
 import Base: round
-round(x::Flux.Tracker.TrackedReal, r::Base.RoundingMode) = round(x.data, r)
+round(x::Flux.Tracker.TrackedReal, r::Base.RoundingMode) = round(Flux.data(x), r)
 
 function DDM_cdf_small(a,v,w,t,eps=sqrt(eps()))
 	K = Int(round(Ks(t, v, a, w, eps)))
