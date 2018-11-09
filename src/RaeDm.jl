@@ -18,6 +18,9 @@ end
 using Flux, ForwardDiff, DiffResults, StatsFuns, NNlib
 using Flux.Tracker: TrackedReal, TrackedArray, track, @grad, data
 using StatsFuns: softplus
+import Flux: gpu, cpu
+
+export FIVOChain, zero_grad!, gpu, cpu
 include("miscelaneous.jl")
 
 @mainDef DEBUG=false

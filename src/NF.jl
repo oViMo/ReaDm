@@ -13,6 +13,7 @@ struct NF
 	idvw
 	idvu
 	idb
+	GPU::Bool
 	function NF(nz::Int64,nlayers::Int64)#,np::Int64)
 		id = 0
 		idμ = id.+(1:nz)
@@ -37,11 +38,16 @@ struct NF
 			end
 		end
 		np = 2nz+2*nlayers*nz+nlayers
-		new(nz,nlayers,np,idμ,idσ,idvw,idvu,idb)
+		new(nz,nlayers,np,idμ,idσ,idvw,idvu,idb,false)
+	end
+	function NF(nz,nlayers,np,idμ,idσ,idvw,idvu,idb,GPU)
+		new(nz,nlayers,np,idμ,idσ,idvw,idvu,idb,GPU)
 	end
 end
+gpu(x::NF) =  NF(map(f->gpu(getfield(x,f)),fieldnames(NF)[1:end-1])...,true)
+
 function (a::NF)(x)
-	NFfun(x,a,a.nz,a.nlayers)
+	NFfun(x,a,a.nz,a.nlayers,a.GPU)
 end
 if haskey(ENV,"CUDA_HOME")
 	# Float32
@@ -56,7 +62,14 @@ else
 	const log2πHalf = 0.9189385332046727
 	const One = 1.0
 end
-function NFfun(x,a,nz,nlayers)
+function NFfun(x,a,nz,nlayers,GPU=false)
+	if GPU
+		MainType = Float32
+		send_effector = gpu
+	else
+		MainType = Float64
+		send_effector(x) = x
+	end
 	μ 	= getindex(x,a.idμ,:)
 	σ 	= NNlib.softplus.((getindex(x,a.idσ,:)))
 

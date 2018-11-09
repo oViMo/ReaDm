@@ -3,35 +3,36 @@ const afun = elu
 
 ## Cuda ##
 #========#
-if isCu
-	#import Base: exp,log1p
-	#import StatsFuns:log1pexp,softplus
-	const MainType = Float32
-	function send_effector(x::AbstractArray)
-		isempty(x) ? x : (x |> gpu)
-	end
-	function send_effector(x)
-		x |> gpu
-	end
-	function send_effector(x::T) where {T<:Union{FIVOChain,Flux.Chain,Flux.Dense}}
-		mapleaves(cu,x)
-	end
-	function send_effector(x::T) where {T<:Union{AbstractArray{<:AbstractArray},Tuple,NamedTuple}}
-		map(send_effector,x)
-	end
-else
-	const MainType = Float64
-	function send_effector(x)
-		x |> cpu
-	end
-end
+# if isCu
+# 	#import Base: exp,log1p
+# 	#import StatsFuns:log1pexp,softplus
+# 	const MainType = Float32
+# 	function send_effector(x::AbstractArray)
+# 		isempty(x) ? x : (x |> gpu)
+# 	end
+# 	function send_effector(x)
+# 		x |> gpu
+# 	end
+# 	function send_effector(x::T) where {T<:Union{FIVOChain,Flux.Chain,Flux.Dense}}
+# 		mapleaves(cu,x)
+# 	end
+# 	function send_effector(x::T) where {T<:Union{AbstractArray{<:AbstractArray},Tuple,NamedTuple}}
+# 		map(send_effector,x)
+# 	end
+# else
+# 	print("running on CPU\n")
+# 	const MainType = Float64
+# 	function send_effector(x)
+# 		x
+# 	end
+# end
 
 ## Exec ##
 #========#
 function (fc::FIVOChain)(RT,C,x)
-	if isCu
-		RT = MainType.(RT)
-		C = MainType.(C)
+	if fc.GPU
+		RT = Float32.(RT)
+		C = Float32.(C)
 		x = cu.(x)
 	end
 	nsim	= fc.nsim
@@ -44,16 +45,20 @@ function (fc::FIVOChain)(RT,C,x)
 	reset!(fc.G)
 
 	ntrials = length(RT)
+	MainType = typeof(RT[1])
 	accumulated_logw = param(zeros(MainType,1,nsim))
 	L = zero(MainType)
 
-	XYZ = [send_effector(param(zeros(MainType,nnodes,nsim))) for k in 1:3]
+	XYZ = [param(zeros(MainType,nnodes,nsim)) for k in 1:3]
+	if fc.GPU
+		XYZ = gpu.(XYZ)
+	end
 	for (rt,c,k) in zip(RT,C,1:ntrials)
 		Yt      = fc.xPX(x[k]) # latent representation of regressors
 		h		= fc.G(vcat(XYZ...)) # map previous regressors, data and latent variable to hidden state of GRU
 		XYZ[2] 	= repeat(Yt,outer=(1,nsim))
 		D 		= [rt;c]
-		log_alpha_t 			= local_lik(h,fc,XYZ,D,nz)
+		log_alpha_t 			= local_lik(h,fc,XYZ,D,nz,fc.GPU)
 		log_p_hat_t_summand 	= log_alpha_t .+ accumulated_logw
 		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
 		L 						= L + log_p_hat_t
@@ -69,7 +74,7 @@ if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
 	h = G.state
 	if DEBUG
 		print("\nResampling\n")
-		@show acc_logw_detach
+		#@show acc_logw_detach
 	end
 	a = findfirst(cumsum(exp.(acc_logw_detach[:]),dims=1) .> rand())
 	accumulated_logw = -log(N)*param(ones(1,N))
@@ -81,24 +86,41 @@ else
 	return accumulated_logw,z
 end
 end
-@inline function local_lik(h,fc,XYZ,D,nz)
+@inline function local_lik(h,fc,XYZ,D,nz, GPU)
 	D	= repeat(D,outer=(1,fc.nsim))
-	XYZ[1]	= fc.yPY(send_effector(D)) # latent representation of x
+	if GPU
+		D = gpu(D)
+	end
+	XYZ[1]	= fc.yPY(D) # latent representation of x
 	ϕ	= fc.Pϕ(vcat(h,XYZ[1:2]...))
 	μσtmp	= fc.hPrior(h)
 	μ 	= fc.hPriorμ(μσtmp)
 	σs 	= fc.hPriorσ(μσtmp)
 	L,z	= fc.Nz(ϕ)
+	#@show typeof(L)
+	#@show typeof(z)
 	Lt	= normlpdf(z,μ,σs)
+	#@show typeof(Lt)
 	L	= L .+ Lt
-	XYZ[3]	= fc.zPZ(send_effector(z))
-	θ	= fc.zPθ(vcat(XYZ[2:3]...))
-	L 	= Tracker.collect([begin
-			τ	= θ[4,k]*MainType(0.1)
-			L[k]+boundτ(ddm(θ[1,k],θ[2,k],θ[3,k],τ,D[1,1],D[2,1]),τ,D[1,1])
-		end for k in 1:fc.nsim]')
+	#@show typeof(L)
+	if GPU
+		z = gpu(z)
+	end
+	XYZ[3]	= fc.zPZ(z)
+	θ	= fc.zPθ(vcat(XYZ[2:3]...)) |> cpu
+	#@show typeof(θ)
+	Lt 	= ([begin
+			τ	= GPU ? θ[4,k]*Float32(0.1) : θ[4,k] * 0.1
+			boundτ(ddm(θ[1,k],θ[2,k],θ[3,k],τ,D[1,1],D[2,1]),τ,D[1,1])
+		end for k in 1:fc.nsim]') |> Tracker.collect
+	if GPU
+		Lt = Lt |> gpu
+	end
 
-	L
+	#@show typeof(L)
+
+	L + Lt#
+
 end
 
 function (fc::TCNChain)(rt,c,x)
@@ -132,27 +154,33 @@ function ddm(a,v,w,τ,rt,c)
 	if abs(c) == one(c)
 		return SSM.DDM_lpdf(a,v,w,τ,rt,c)
 	else
-		return log(minimum((maximum((one(a)*floatmin(MainType),1 - SSM.DDM_cdf(a,v,w,τ,rt,c))),one(a))))
+		return log(minimum((maximum((one(a)*floatmin(typeof(rt)),1 - SSM.DDM_cdf(a,v,w,τ,rt,c))),one(a))))
 	end
 end
 const ddmv(x) = ddm(x...)
 if isCu
-	const ddmgrad = DiffResults.GradientResult(Float32.(zeros(6)))
-	const cfg6 = ForwardDiff.GradientConfig(ddmv, Float32.([1.0;2.0;0.0;0.0;1.0;1.0]), ForwardDiff.Chunk{6}());
-else
-	const ddmgrad = DiffResults.GradientResult(zeros(6))
-	const cfg6 = ForwardDiff.GradientConfig(ddmv, [1.0;2.0;0.0;0.0;1.0;1.0], ForwardDiff.Chunk{6}());
+	const ddmgrad_float32 = DiffResults.GradientResult(Float32.(zeros(6)))
+	const cfg6_float32 = ForwardDiff.GradientConfig(ddmv, Float32.([1.0;2.0;0.0;0.0;1.0;1.0]), ForwardDiff.Chunk{6}());
 end
-@grad function ddm(a,v,w,τ,rt,c)
-	ForwardDiff.gradient!(ddmgrad,ddmv,data.([a,v,w,τ,rt,c]),cfg6)
-	G = ∇->(ddmgrad.derivs[1][1]*∇,ddmgrad.derivs[1][2]*∇,ddmgrad.derivs[1][3]*∇,ddmgrad.derivs[1][4]*∇,∇*0,∇*0)
-	return ddmgrad.value,G
+const ddmgrad_float64 = DiffResults.GradientResult(zeros(6))
+const cfg6_float64 = ForwardDiff.GradientConfig(ddmv, [1.0;2.0;0.0;0.0;1.0;1.0], ForwardDiff.Chunk{6}());
+
+@grad function ddm(a::Union{Flux.Tracker.TrackedReal{Float32},Float32},v,w,τ,rt,c)
+	ForwardDiff.gradient!(ddmgrad_float32,ddmv,data.([a,v,w,τ,rt,c]),cfg6_float32)
+	G = ∇->(ddmgrad_float32.derivs[1][1]*∇,ddmgrad_float32.derivs[1][2]*∇,ddmgrad_float32.derivs[1][3]*∇,ddmgrad_float32.derivs[1][4]*∇,∇*0,∇*0)
+	return ddmgrad_float32.value,G
+end
+@grad function ddm(a::Union{Flux.Tracker.TrackedReal{Float64},Float64},v,w,τ,rt,c)
+	ForwardDiff.gradient!(ddmgrad_float64,ddmv,data.([a,v,w,τ,rt,c]),cfg6_float64)
+	G = ∇->(ddmgrad_float64.derivs[1][1]*∇,ddmgrad_float64.derivs[1][2]*∇,ddmgrad_float64.derivs[1][3]*∇,ddmgrad_float64.derivs[1][4]*∇,∇*0,∇*0)
+	return ddmgrad_float64.value,G
 end
 ddm(a::TrackedReal,v::TrackedReal,w::TrackedReal,τ::TrackedReal,rt::Float32,c::Float32) = Tracker.track(ddm,a,v,w,τ,rt,c)
 ddm(a::TrackedReal,v::TrackedReal,w::TrackedReal,τ::TrackedReal,rt::Float64,c::Float64) = Tracker.track(ddm,a,v,w,τ,rt,c)
 
 function normlpdf(z::S , μ::T , σs::T) where {S,T}
 	D = (z .- μ) ./ σs
-	M = D.*D ./2 .- log.(σs) .- MainType(log2π/2)
+	TYPE = typeof(D[1])
+	M = D.*D ./2 .- log.(σs) .- TYPE(log2π/2)
 	return .- sum(M ,dims=1)
 end
