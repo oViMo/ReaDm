@@ -66,6 +66,7 @@ function (fc::FIVOChain)(RT,C,x)
 		#@show  typeof(accumulated_logw)
 		log_p_hat_t_summand 	= log_alpha_t .+ accumulated_logw
 		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
+		@show log_p_hat_t
 		L 						= elinf(L + log_p_hat_t)
 		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
 		accumulated_logw,XYZ[3] = resample(accumulated_logw,fc.G,XYZ[3],fc.GPU)
