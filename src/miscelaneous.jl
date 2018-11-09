@@ -39,9 +39,16 @@ logsumexp_overflow(x::TrackedArray) = Tracker.track(logsumexp_overflow,x)
 		end
 		∂ ./= L
 		L = log(L)+mx
-		return L,Δ->(Δ*∂,)
+		return elinf(L),Δ->(Δ*∂,)
 	else
 		∂ = one.(x)/length(x)
 		return -floatmax(),Δ->(Δ*∂,)
 	end
 end
+
+elinf(L) = L==-Inf ? -floatmax() : L
+@grad function logsumexp_overflow(L)
+	d = L.data
+	return elinf(d),Δ->(Δ,)
+end
+elinf(x::TrackedReal) = Tracker.track(elinf,x)

@@ -18,12 +18,7 @@ if RaeDm.isCu
     Fg = gpu(F)
 end
 
-print("Loss:\n")
-L = F(RT[1],C[1],X[1])
-@show L
-print("backprop\n")
-Tracker.back!(L)
-zero_grad!(F)
+
 if RaeDm.isCu
     print("Loss (gpu):\n")
     L = Fg(RT[1],C[1],X[1])
@@ -32,6 +27,13 @@ if RaeDm.isCu
     Tracker.back!(L)
     zero_grad!(Fg)
 end
+print("Loss:\n")
+L = F(RT[1],C[1],X[1])
+@show L
+print("backprop\n")
+Tracker.back!(L)
+zero_grad!(F)
+
 
 print("Time:\n")
 @time begin

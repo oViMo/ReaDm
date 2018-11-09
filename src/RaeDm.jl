@@ -20,7 +20,7 @@ using Flux.Tracker: TrackedReal, TrackedArray, track, @grad, data
 using StatsFuns: softplus
 import Flux: gpu, cpu
 
-export FIVOChain, zero_grad!, gpu, cpu
+export FIVOChain, zero_grad!, gpu, cpu,optimize
 include("miscelaneous.jl")
 
 @mainDef DEBUG=false

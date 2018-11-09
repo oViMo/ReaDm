@@ -1,5 +1,5 @@
 module SSM
-using Distributions,  ForwardDiff , StatsFuns , Flux
+using Distributions,  ForwardDiff , StatsFuns , Flux, SpecialFunctions
 export DDM,DDM2,DDM_lpdf_notape , ddm_avg
 
 abstract type DDMdistributionC <: Distributions.ContinuousUnivariateDistribution end
@@ -26,10 +26,10 @@ end
 function Distributions.length(d::DDMdistribution)
 return 2
 end
-function Distributions._logpdf(d::DDMdistribution,x::AbstractArray) 
+function Distributions._logpdf(d::DDMdistribution,x::AbstractArray)
 return DDM_lpdf(d.a,d.v,d.w,d.t0,x[1],x[2])
 end
-function Distributions._logpdf(d::DDMdistributionC,x::AbstractArray) 
+function Distributions._logpdf(d::DDMdistributionC,x::AbstractArray)
 return DDM_lpdf(d.a,d.v,d.w,d.t0,x[1],d.c)
 end
 function Distributions._logcdf!(r,d::DDMdistribution,x::AbstractArray)
@@ -111,6 +111,9 @@ else
 	return zero(a)
 end
 end
+import Base: round
+round(x::Flux.Tracker.TrackedReal, r::Base.RoundingMode) = round(x.data, r)
+
 function DDM_cdf_small(a,v,w,t,eps=sqrt(eps()))
 	K = Int(round(Ks(t, v, a, w, eps)))
 	F = zero(a)
@@ -122,7 +125,7 @@ function DDM_cdf_small(a,v,w,t,eps=sqrt(eps()))
 		pos2 = dj + logMill((rj+v*t)/sqt)
 		rj = (2*k+1)*a + a*(1-w)
 		dj = -v*a*w - v*v*t/2 + StatsFuns.normlogpdf(rj/sqt)
-		neg1 = dj + logMill((rj-v*t)/sqt) 
+		neg1 = dj + logMill((rj-v*t)/sqt)
 		neg2 = dj + logMill((rj+v*t)/sqt)
 		F = exp(pos1) + exp(pos2) - exp(neg1) - exp(neg2) + F
 	end
@@ -175,7 +178,7 @@ end
 #	m=4
 #	aa=a*a
 #	if t - T0 * aa <0
-#		ddm_logpdf_full_common1_GRAD(a,t,w,aa,m) 
+#		ddm_logpdf_full_common1_GRAD(a,t,w,aa,m)
 #	else
 #		ddm_logpdf_full_common2_GRAD(a,t,w,aa,n)
 #	end
@@ -214,7 +217,7 @@ for k2=-m:m
     TKW = 2k2+w
     V += TKW*exp(-.5Ot_aa*TKW*TKW + cst)
 end
-return logmax(V) + 3log(a) - 1.5log(t) - 9.189385332046727e-1 - cst 
+return logmax(V) + 3log(a) - 1.5log(t) - 9.189385332046727e-1 - cst
 end
 function ddm_logpdf_full_common1_GRAD(a::T,t::T,w::T,aa::T,m::Int64)::T where {X,Y,T<:Union{Float32,Tracker.TrackedReal{Float32},ForwardDiff.Dual{X,Float32,Y}}}
 Ot    = 1.0f0/t
@@ -226,7 +229,7 @@ for k2=-m:m
     TKW = 2k2+w
     V += TKW*exp(-0.5f0 * Ot_aa*TKW*TKW + cst)
 end
-return logmax(V) + 3log(a) - 1.5f0 * log(t) - 0.9189385f0 - cst 
+return logmax(V) + 3log(a) - 1.5f0 * log(t) - 0.9189385f0 - cst
 #return T(logmax(V) + 3log(a) - 1.5log(t) - convert(T,9.189385332046727e-1) - cst )
 end
 
@@ -266,14 +269,14 @@ function ddm_avgrt(a,v,w,t0,c)
 a=DDM_mapa(c*a)
 w = DDM_logistic(c*w)
 
-av = a*v 
+av = a*v
 avw = av*w
 Q3=expm1(-2*av)
 Q4=expm1(-2*avw)
 
-    M0 = abs(v)>1e-3 ? a.*(Q4-Q3.*w)./(v.*Q3)       :  - a.^2.0 .* ((-1.0)+w).*w        
+    M0 = abs(v)>1e-3 ? a.*(Q4-Q3.*w)./(v.*Q3)       :  - a.^2.0 .* ((-1.0)+w).*w
 
-    return t0+M0 
+    return t0+M0
 
 end
 function ddm_varrt(a,v,w,t0;s=1)
@@ -291,12 +294,12 @@ function ddm_varrt(a,v,w,t0,c)
 a=DDM_mapa(c*a)
 w = DDM_logistic(c*w)
 
-av = a*v 
+av = a*v
 avw = av*w
 Q3=expm1(-2*av)
 Q4=expm1(-2*avw)
 
-    V0 = abs(v)>1e-3 ? -a./(v.^3.0) .*(w-(Q4.*(a.*(w.*4.0-3.0).*v+1.0)+avw.*4.0)/Q3+Q4.*av.*(Q4+4.0)/Q3.^2.0) : .33333333333333 .*a.^4.0 .* w.* (1.0+w.*((-3.0)+(-2.0).*((-2.0)+w).*w))  
+    V0 = abs(v)>1e-3 ? -a./(v.^3.0) .*(w-(Q4.*(a.*(w.*4.0-3.0).*v+1.0)+avw.*4.0)/Q3+Q4.*av.*(Q4+4.0)/Q3.^2.0) : .33333333333333 .*a.^4.0 .* w.* (1.0+w.*((-3.0)+(-2.0).*((-2.0)+w).*w))
 
     return  V0
 
@@ -356,7 +359,7 @@ function Fs(a,v,w,t0,t,c,eps=sqrt(eps()))
 		pos2 = dj + logMill((rj+v*t)/sqt)
 		rj = (2*k+1)*a + a*(1-w)
 		dj = -v*a*w - v*v*t/2 + StatsFuns.normlogpdf(rj/sqt)
-		neg1 = dj + logMill((rj-v*t)/sqt) 
+		neg1 = dj + logMill((rj-v*t)/sqt)
 		neg2 = dj + logMill((rj+v*t)/sqt)
 		F = exp(pos1) + exp(pos2) - exp(neg1) - exp(neg2) + F
 	end
@@ -397,8 +400,8 @@ tt=1::Int64
 a::T=DDM_mapa(a)/delta
 pos::T=a*DDM_logistic(w)
 
-	
-pdown::T=0.5*(1.0-v*delta) 
+
+pdown::T=0.5*(1.0-v*delta)
 
 @inbounds while zero(T)<=pos<=a
     tt+=1
@@ -424,7 +427,7 @@ function DDM_rand2(a::T,v::T,w::T,t0::T,s::Float64=1.) where T
 	a=DDM_mapa(a)
 	pos=a*DDM_logistic(w)
 
-	dv = h*v 
+	dv = h*v
 	sdelta = s*delta
 	while true
 		tt+=1
@@ -469,14 +472,14 @@ function generateDDMn(n::Int32,a::Float64,v::Float64,w::Float64,t0::Float64)
     RT[:,k]=generateDDM(a,v,w,t0);
     end
     toc();
-    return RT; 
+    return RT;
 end
 @inline function minmax01(V;rm=false)
         if rm
                 cst = typemin(Float64)
         else
                 cst=0.
-        end 
+        end
         minimum([one(V)-cst;maximum([zero(V)+cst;V])])
 end
 

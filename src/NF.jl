@@ -49,19 +49,6 @@ gpu(x::NF) =  NF(map(f->gpu(getfield(x,f)),fieldnames(NF)[1:end-1])...,true)
 function (a::NF)(x)
 	NFfun(x,a,a.nz,a.nlayers,a.GPU)
 end
-if haskey(ENV,"CUDA_HOME")
-	# Float32
-	const Zero = 0.0f0
-	const OneHalf = 0.5f0
-	const log2πHalf = 0.9189385f0
-	const One = 1.0f0
-else
-	# Float64
-	const Zero = 0.0
-	const OneHalf = 0.5
-	const log2πHalf = 0.9189385332046727
-	const One = 1.0
-end
 function NFfun(x,a,nz,nlayers,GPU=false)
 	if GPU
 		MainType = Float32
@@ -70,6 +57,20 @@ function NFfun(x,a,nz,nlayers,GPU=false)
 		MainType = Float64
 		send_effector(x) = x
 	end
+	if GPU
+		# Float32
+		 Zero = 0.0f0
+		 OneHalf = 0.5f0
+		 log2πHalf = 0.9189385f0
+		 One = 1.0f0
+	else
+		# Float64
+		 Zero = 0.0
+		 OneHalf = 0.5
+		 log2πHalf = 0.9189385332046727
+		 One = 1.0
+	end
+
 	μ 	= getindex(x,a.idμ,:)
 	σ 	= NNlib.softplus.((getindex(x,a.idσ,:)))
 
@@ -82,12 +83,12 @@ function NFfun(x,a,nz,nlayers,GPU=false)
 		vw 	= getindex(x,a.idvw[k],:)
 		vu 	= getindex(x,a.idvu[k],:)
 		b	= getindex(x,a.idb[k],:)'
-		ett,z 	= subNFfun(vw,vu,b,z)
+		ett,z 	= subNFfun(vw,vu,b,z,One)
 		EntropyComp = EntropyComp .- ett
 	end
 	EntropyComp,z
 end
-function subNFfun(vw,vu,b,z)
+function subNFfun(vw,vu,b,z,One)
 	dotvwvu	= dotdim(vw,vu,1)
 	vu 	= vu .+ ((NNlib.softplus.(dotvwvu) .- One .- dotvwvu) .* vw ./ dotdim(vw,vw,1))
 	Hval 	= tanh.(dotdim(vw , z,1) .+ b)
