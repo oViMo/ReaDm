@@ -52,3 +52,27 @@ elinf(L) = L==-Inf ? -floatmax() : L
 	return elinf(d),Δ->(Δ,)
 end
 elinf(x::TrackedReal) = Tracker.track(elinf,x)
+
+
+function boundcdf(c)
+	if c < 0.0
+		return floatmin()
+	elseif c > 1.0
+		return one(c)
+	else
+		return c
+	end
+end
+@grad function boundcdf(c_diff)
+	c = data(c_diff)
+	if c < 0.0
+		return floatmin(),δ->(δ,)
+	elseif c > 1.0
+		return one(c),δ->(δ,)
+	else
+		return c,δ->(δ,)
+	end
+end
+boundcdf(c::TrackedReal) = Tracker.track(boundcdf,c)
+
+

@@ -101,18 +101,19 @@ w=DDM_logistic(w)
 
 rt = rt-t0
 if rt>0
-T0=0.2397217965550664
-n=8
-m=4
-aa = a*a
-V = rt - T0 * aa<0 ? DDM_cdf_small(a,v,w,rt) : DDM_cdf_large(a,v,w,rt,n,c)
-return minmax01(V,rm=true)
+	T0=0.2397217965550664
+	n=8
+	m=4
+	aa = a*a
+	V = rt - T0 * aa < 0 ? DDM_cdf_small(a,v,w,rt) : DDM_cdf_large(a,v,w,rt,n,c)
+	return V #minmax01(V,rm=true)
 else
 	return zero(a)
 end
 end
 import Base: round
 round(x::Flux.Tracker.TrackedReal, r::Base.RoundingMode) = round(Flux.data(x), r)
+
 
 function DDM_cdf_small(a,v,w,t,eps=sqrt(eps()))
 	K = Int(round(Ks(t, v, a, w, eps)))
@@ -152,7 +153,7 @@ w = -c*w
 a = DDM_mapa(a)
 w = DDM_logistic(w)
 rt = rt-t0
-return  rt>0 ? (ddm_p0(a,v,w,rt) + ddm_p1(a,w,rt)) : (-floatmax(T))
+return rt>0 ? (ddm_p0(a,v,w,rt) + ddm_p1(a,w,rt)) : (-floatmax(T))
 end
 #function DDM_lpdf_notape(a,v,w,t0,rt,c)
 #v = -c*v
@@ -474,13 +475,19 @@ function generateDDMn(n::Int32,a::Float64,v::Float64,w::Float64,t0::Float64)
     toc();
     return RT;
 end
-@inline function minmax01(V;rm=false)
-        if rm
-                cst = typemin(Float64)
-        else
-                cst=0.
-        end
-        minimum([one(V)-cst;maximum([zero(V)+cst;V])])
-end
+#@inline function minmax01(V;rm=false)
+#        if rm
+#                cst = typemin(Float64)
+#        else
+#                cst=0.
+#        end
+#	if V < 0
+#		return floatmin(typeof(V))
+#	elseif V > 1
+#		return one(typeof(V))
+#	else
+#		return V
+#	end
+#end
 
 end

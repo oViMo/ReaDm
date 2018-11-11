@@ -4,7 +4,7 @@ RT = Array{Array{Float64,1},1}()
 C = Array{Array{Float64,1},1}()
 X = Array{Array{Array{Float64,1}},1}()
 for ss in 1:24
-	fn = Printf.@sprintf("C:\\Users\\vmoens\\Julia\\BugSa_data\\subj%i.csv",ss)
+	fn = Printf.@sprintf("../BugSa_data/subj%i.csv",ss)
 	csvs = CSV.read(fn)
 
 	rt1 = csvs.RT1
