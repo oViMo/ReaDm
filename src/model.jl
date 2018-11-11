@@ -46,7 +46,7 @@ function (fc::FIVOChain)(RT,C,x)
 
 	ntrials = length(RT)
 	MainType = typeof(RT[1])
-	accumulated_logw = param(zeros(MainType,1,nsim))
+	accumulated_logw = param(-log(nsim) * ones(MainType,1,nsim))
 	if fc.GPU
 		accumulated_logw = gpu(accumulated_logw)
 	end

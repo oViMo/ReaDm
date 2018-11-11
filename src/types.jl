@@ -27,7 +27,7 @@ struct FIVOChain{N,R}
 	nz::Int64
 	GPU::Bool
 
-	function FIVOChain(;nx::Int64=2,ny::Int64=2,nz::Int64=10,nlayers::Int64=4,nnodes::Int64=50,nsim::Int64=4)
+	function FIVOChain(;nx::Int64=2,ny::Int64=2,nz::Int64=10,nlayers::Int64=4,nnodes::Int64=50,nsim::Int64=4,afun=elu)
 		Nz	= NF(nz,nlayers)
 		G 	= GRU_mult((nnodes,nnodes,nnodes),nnodes)
 		yPY 	= Chain(Dense(ny,nnodes,afun),Dense(nnodes,nnodes,afun)) # data
