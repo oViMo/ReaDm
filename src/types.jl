@@ -197,9 +197,6 @@ function GRUCell_mult(in::NTuple{N,Integer}, out; init = glorot_uniform) where N
           param(zeros(out*3)), param(init(out)))
 end
 
-function (m::GRUCell_mult)(h, x...)
-	m(h,x)
-end
 function (m::GRUCell_mult)(h, x)
   b, o = m.b, size(h, 1)
   gh = m.Wh*h
@@ -226,11 +223,3 @@ See [this article](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
 for a good overview of the internals.
 """
 GRU_mult(a...; ka...) = Recur(GRUCell_mult(a...; ka...))
-
-
-
-
-
-
-
-

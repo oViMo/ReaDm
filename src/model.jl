@@ -52,60 +52,69 @@ function (fc::FIVOChain)(RT,C,x)
 	end
 	L = zero(MainType)
 
-	Xt = param(zeros(MainType,nnodes))
-	Yt = param(zeros(MainType,nnodes))
-	Zt = param(zeros(MainType,nnodes,nsim))
-	if fc.GPU
-		XYZ = gpu.(XYZ)
+
+
+	local_lik = make_local_lik(fc,x,RT,C)
+	for (t,(rt,c)) in enumerate(zip(RT,C))
+		log_alpha_t 			= local_lik(fc,t,rt,c)
+		log_p_hat_t_summand 	= log_alpha_t .+ accumulated_logw
+		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
+		L 						= elinf(L + log_p_hat_t)
+		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
+		accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 	end
+	L/ntrials
+end
+
+function make_local_lik(fc,x,RT,C)
+	GPU = fc.GPU
+	nnodes = fc.nnodes
+	nsim = fc.nsim
 
 	# Fetch X's: latent representation of regressors
 	Xs = fc.xPX(hcat(x...))
 	# Fetch Y's: latent representation of data
 	Ys = fc.yPY([RT C]')
 
-	for (t,(rt,c)) in enumerate(zip(RT,C))
-		h		= fc.G((Xt,Yt,Zt)) # map previous regressors, data and latent variable to hidden state of GRU
+	MainType = GPU ? Float32 : Float64
+	Zt = param(zeros(MainType,nnodes,nsim))
+	if GPU
+		Zt = Zt |> gpu
+	end
+	function local_lik(fc,t, rt ,c)
+		Xt,Yt = Xs[:,t], Ys[:,t]
+		GPU = fc.GPU
+		h = fc.G.state
 
-		Xt      	= Xs[:,t]
-		Yt		= Ys[:,t]
-		log_alpha_t,Zt 		= local_lik(h,fc,(Xt,Yt,Zt),nz,fc.GPU,rt,c)
-		log_p_hat_t_summand 	= log_alpha_t .+ accumulated_logw
-		log_p_hat_t 		= logsumexp_overflow(log_p_hat_t_summand)
-		L 			= elinf(L + log_p_hat_t)
-		accumulated_logw 	= log_p_hat_t_summand .- log_p_hat_t
-		accumulated_logw,Zt 	= resample(accumulated_logw,fc.G,Zt,fc.GPU)
-	end
-	L/ntrials
-end
-@inline function local_lik(h,fc,XYZ,nz, GPU, rt ,c)
-	ϕ	= fc.Pϕ((h,XYZ[1:2]...))
-	μσtmp	= fc.hPrior(h)
-	μ 	= fc.hPriorμ(μσtmp)
-	σs 	= fc.hPriorσ(μσtmp)
-	nH,z	= fc.Nz(ϕ)
-	Lt	= normlpdf(z,μ,σs)
-	L	= Lt .- nH
-	if GPU
-		z = gpu(z)
-	end
-	Zt	= fc.zPZ(z)
-	θ	= fc.zPθ((XYZ[2],Zt))
-	if GPU
-		θ = θ |> cpu
-	end
-	Lt 	= Tracker.collect([begin
+		ϕ	= fc.Pϕ((h,Xt,Yt))
+		μσtmp	= fc.hPrior(h)
+		μ 	= fc.hPriorμ(μσtmp)
+		σs 	= fc.hPriorσ(μσtmp)
+		nH,z	= fc.Nz(ϕ)
+		Lt	= normlpdf(z,μ,σs)
+		L	= Lt .- nH
+		if GPU
+			z = gpu(z)
+		end
+		Zt	= fc.zPZ(z)
+		θ	= fc.zPθ((Yt,Zt))
+		if GPU
+			θ = θ |> cpu
+		end
+		Lt 	= Tracker.collect([begin
 			τ	= GPU ? θ[4,t]*Float32(0.1) : θ[4,t] * 0.1
 			boundτ(ddm(θ[1,t],θ[2,t],θ[3,t],τ,rt,c),τ,rt)
-		end for t in 1:fc.nsim]')
-	if GPU
-		Lt = Lt |> gpu
-	end
+			end for t in 1:fc.nsim]')
+		if GPU
+			Lt = Lt |> gpu
+		end
 
-	L .+ Lt, Zt
+		fc.G((Xt,Yt,Zt)) # map previous regressors, data and latent variable to hidden state of GRU
 
+		L .+ Lt
+		end
 end
-function resample(accumulated_logw,G,z,GPU)
+function resample(accumulated_logw,G,local_lik,GPU)
 acc_logw_detach = copy(accumulated_logw.data)
 N = length(acc_logw_detach)
 if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
@@ -116,15 +125,16 @@ if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
 	end
 	a 			= findfirst(cumsum(exp.(acc_logw_detach[:]),dims=1) .> rand())
 	accumulated_logw 	= -log(N)*param(ones(1,N))
-	z 			= repeat(z[:,a],outer=(1,N))
+	z = local_lik.Zt.contents
+	local_lik.Zt.contents 			= repeat(z[:,a],outer=(1,N))
 	h 			= repeat(h[:,a],outer=(1,N))
 	G.state 		= h # in place
 	if GPU
 		accumulated_logw = accumulated_logw |> gpu
 	end
-	return accumulated_logw,z
+	return accumulated_logw
 else
-	return accumulated_logw,z
+	return accumulated_logw
 end
 end
 
