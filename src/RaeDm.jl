@@ -10,7 +10,7 @@ macro mainDef(x)
         esc(y)
 end
 
-@mainDef isCu = haskey(ENV,"CUDA_HOME") || haskey(ENV,"CUDA_PATH")
+@mainDef isCu = (Base.find_package("CuArrays") != nothing)
 if isCu
     print("Using CUDA\n")
     using CuArrays
