@@ -331,7 +331,16 @@ function logMill(x)
 # Gondan et al. 2014
 return x > 10000 ? -log(x) : normlogCDF(-x) - StatsFuns.normlogpdf(x)
 end
-quant(x) = Distributions.quantile(Normal(),x)
+function check_minmax_01(x)
+	if x<0
+		return zero(x)
+	elseif x>1
+		return one(x)
+	else
+		return x
+	end
+end
+quant(x) = Distributions.quantile(Normal(),check_minmax_01(x))
 function Ks(t,v,a,w,eps)
     K1  = (x->isfinite(x) && abs(x)<1000 ?  x : sign(x)*1000)(ceil((abs(v)*t - a*w)/2/a))
     V = exp(v*a*w + v*v*t/2 + log(eps))/2

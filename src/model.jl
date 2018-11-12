@@ -176,6 +176,7 @@ function optimize(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,conti
 	else
 		opt_local = ()->nothing
 	end
+
 	for t in 1:1000
 		ss = rand(1:length(RT))
 		L = -F(RT[ss],C[ss],X[ss],gradient_fetch_interval=gradient_fetch_interval,opt_local=opt_local)
@@ -185,6 +186,7 @@ function optimize(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,conti
 		if t % 10 == 0
 			print("t = ",t,"\t L = ",L.data,"\r")
 		end
+
 	end
 	print("\n")
 	return F
