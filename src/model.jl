@@ -30,7 +30,7 @@ const afun = elu
 ## Exec ##
 #========#
 function (fc::FIVOChain)(RT,C,x;
-	gradient_fetch_interval = -1, compute_intermediate_grad = false)
+	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing)
 	if fc.GPU
 		RT = Float32.(RT)
 		C = Float32.(C)
@@ -64,10 +64,12 @@ function (fc::FIVOChain)(RT,C,x;
 		if t ∈ seq_gradient_fetch_interval
 #			print("stack grad at ",t,"\n")
 			# break dependency of the current log-lik on previous time steps
-		#	if compute_intermediate_grad
-		#		Tracker.back!(L)
-		#		L = data(L)
-		#	end
+			if compute_intermediate_grad
+				Tracker.back!(L)
+				opt_local()
+				L = data(L)
+			end
+
 			accumulated_logw 		= data(accumulated_logw)
 			local_lik.Zt 			= param(data(local_lik.Zt))
 			fc.G.state 				= param(data(fc.G.state))
@@ -163,12 +165,20 @@ else
 end
 end
 
-function optimize(F::FIVOChain,RT,C,X,gradient_fetch_interval=200)
+function optimize(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,continuous_opt::Bool=true)
 	opt = Flux.ADAM(params(F), 0.001)
 
+	if continuous_opt
+		opt_local = ()->begin
+				opt()
+				zero_grad!(F)
+				end
+	else
+		opt_local = ()->nothing
+	end
 	for t in 1:1000
 		ss = rand(1:length(RT))
-		L = -F(RT[ss],C[ss],X[ss],gradient_fetch_interval=gradient_fetch_interval)
+		L = -F(RT[ss],C[ss],X[ss],gradient_fetch_interval=gradient_fetch_interval,opt_local=opt_local)
 		Tracker.back!(L)
 		opt()
 		zero_grad!(F)

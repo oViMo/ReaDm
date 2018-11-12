@@ -6,9 +6,9 @@ using RaeDm
 print("Pkg loaded!\n")
 include("load.jl")
 
-F = gpu(FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8))
+F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)
 
-interval = 200
+interval = 500
 L = F(RT[1],C[1],X[1],gradient_fetch_interval=interval)
 Tracker.back!(L)
 
