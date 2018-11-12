@@ -30,7 +30,7 @@ const afun = elu
 ## Exec ##
 #========#
 function (fc::FIVOChain)(RT,C,x;
-	gradient_fetch_interval = -1, compute_intermediate_grad = true)
+	gradient_fetch_interval = -1, compute_intermediate_grad = false)
 	if fc.GPU
 		RT = Float32.(RT)
 		C = Float32.(C)
@@ -62,15 +62,15 @@ function (fc::FIVOChain)(RT,C,x;
 	local_lik = make_local_lik(fc,x,RT,C)
 	for (t,(rt,c)) in enumerate(zip(RT,C))
 		if t ∈ seq_gradient_fetch_interval
-			print("stack grad at ",t,"\n")
+#			print("stack grad at ",t,"\n")
 			# break dependency of the current log-lik on previous time steps
-			if compute_intermediate_grad
-				Tracker.back!(L)
-			end
-			L 						= data(L)
-			accumulated_logw 		= data.(accumulated_logw)
-			local_lik.Zt 	= param(data.(local_lik.Zt))
-			fc.G.state 				= param(data.(fc.G.state))
+		#	if compute_intermediate_grad
+		#		Tracker.back!(L)
+		#		L = data(L)
+		#	end
+			accumulated_logw 		= data(accumulated_logw)
+			local_lik.Zt 			= param(data(local_lik.Zt))
+			fc.G.state 				= param(data(fc.G.state))
 		end
 
 		log_alpha_t 			= local_lik(fc,t,rt,c)
