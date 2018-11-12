@@ -29,11 +29,18 @@ const afun = elu
 
 ## Exec ##
 #========#
-function (fc::FIVOChain)(RT,C,x)
+function (fc::FIVOChain)(RT,C,x;
+	gradient_fetch_interval = -1, compute_intermediate_grad = true)
 	if fc.GPU
 		RT = Float32.(RT)
 		C = Float32.(C)
 		x = cu.(x)
+	end
+	if gradient_fetch_interval > 0
+		init = rand(1:gradient_fetch_interval)
+		seq_gradient_fetch_interval = init:gradient_fetch_interval:length(RT)
+	else
+		seq_gradient_fetch_interval = length(RT)+1:length(RT)+1
 	end
 	nsim	= fc.nsim
 	nnodes  = fc.nnodes
@@ -52,39 +59,57 @@ function (fc::FIVOChain)(RT,C,x)
 	end
 	L = zero(MainType)
 
-
-
 	local_lik = make_local_lik(fc,x,RT,C)
 	for (t,(rt,c)) in enumerate(zip(RT,C))
+		if t ∈ seq_gradient_fetch_interval
+			print("stack grad at ",t,"\n")
+			# break dependency of the current log-lik on previous time steps
+			if compute_intermediate_grad
+				Tracker.back!(L)
+			end
+			L 						= data(L)
+			accumulated_logw 		= data.(accumulated_logw)
+			local_lik.Zt 	= param(data.(local_lik.Zt))
+			fc.G.state 				= param(data.(fc.G.state))
+		end
+
 		log_alpha_t 			= local_lik(fc,t,rt,c)
+
 		log_p_hat_t_summand 	= log_alpha_t .+ accumulated_logw
 		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
-		L 						= elinf(L + log_p_hat_t)
+		L 						= elinf(L + log_p_hat_t/ntrials)
 		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
 		accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 	end
-	L/ntrials
+	L
 end
 
-function make_local_lik(fc,x,RT,C)
-	GPU = fc.GPU
-	nnodes = fc.nnodes
-	nsim = fc.nsim
+mutable struct make_local_lik
+	Xs
+	Ys
+	Zt
+	function make_local_lik(fc,x,RT,C)
+		GPU = fc.GPU
+		nnodes = fc.nnodes
+		nsim = fc.nsim
 
-	# Fetch X's: latent representation of regressors
-	Xs = fc.xPX(hcat(x...))
-	# Fetch Y's: latent representation of data
-	Ys = fc.yPY([RT C]')
+		# Fetch X's: latent representation of regressors
+		Xs = fc.xPX(hcat(x...))
+		# Fetch Y's: latent representation of data
+		Ys = fc.yPY([RT C]')
 
-	MainType = GPU ? Float32 : Float64
-	Zt = param(zeros(MainType,nnodes,nsim))
-	fc.G.state = repeat(fc.G.state,outer=(1,nsim))
-	
-	if GPU
-		Zt = Zt |> gpu
+		MainType = GPU ? Float32 : Float64
+		Zt = param(zeros(MainType,nnodes,nsim))
+		if GPU
+			Zt = Zt |> gpu
+		end
+		fc.G.state = repeat(fc.G.state,outer=(1,nsim))
+		new(Xs,Ys,Zt)
 	end
-	function local_lik(fc,t, rt ,c)
-		Xt,Yt = Xs[:,t], Ys[:,t]
+end
+function (local_lik::make_local_lik)(fc,t, rt ,c)
+		Xt,Yt = local_lik.Xs[:,t], local_lik.Ys[:,t]
+		Zt = local_lik.Zt
 		GPU = fc.GPU
 		h = fc.G.state
 
@@ -114,7 +139,6 @@ function make_local_lik(fc,x,RT,C)
 		fc.G((Xt,Yt,Zt)) # map previous regressors, data and latent variable to hidden state of GRU
 
 		L .+ Lt
-		end
 end
 function resample(accumulated_logw,G,local_lik,GPU)
 acc_logw_detach = copy(accumulated_logw.data)
@@ -127,8 +151,7 @@ if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
 	end
 	a 			= findfirst(cumsum(exp.(acc_logw_detach[:]),dims=1) .> rand())
 	accumulated_logw 	= -log(N)*param(ones(1,N))
-	z = local_lik.Zt.contents
-	local_lik.Zt.contents 			= repeat(z[:,a],outer=(1,N))
+	local_lik.Zt 			= repeat(local_lik.Zt[:,a],outer=(1,N))
 	h 			= repeat(h[:,a],outer=(1,N))
 	G.state 		= h # in place
 	if GPU
@@ -140,12 +163,12 @@ else
 end
 end
 
-function optimize(F::FIVOChain,RT,C,X)
+function optimize(F::FIVOChain,RT,C,X,gradient_fetch_interval=200)
 	opt = Flux.ADAM(params(F), 0.001)
 
 	for t in 1:1000
 		ss = rand(1:length(RT))
-		L = -F(RT[ss],C[ss],X[ss])
+		L = -F(RT[ss],C[ss],X[ss],gradient_fetch_interval=gradient_fetch_interval)
 		Tracker.back!(L)
 		opt()
 		zero_grad!(F)

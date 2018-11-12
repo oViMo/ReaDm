@@ -8,14 +8,15 @@ include("load.jl")
 
 F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)
 
-L = F(RT[1][1:100],C[1][1:100],X[1][1:100])
+L = F(RT[1],C[1],X[1],gradient_fetch_interval=200)
 Tracker.back!(L)
 
 zero_grad!(F)
 
 @time begin
-    L = F(RT[1],C[1],X[1])
+    L = F(RT[1],C[1],X[1],gradient_fetch_interval=200)
     Tracker.back!(L)
+    zero_grad!(F)
 end
 
-optimize(F,RT,C,X)
+optimize(F,RT,C,X,gradient_fetch_interval=200)
