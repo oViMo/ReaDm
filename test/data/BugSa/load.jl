@@ -5,6 +5,7 @@ RT = Array{Array{Float64,1},1}()
 C = Array{Array{Float64,1},1}()
 X = Array{Array{Array{Float64,1}},1}()
 for ss in 1:24
+	@show ss
 	fn = Printf.@sprintf("test/data/BugSa_data/subj%i.csv",ss)
 	csvs = CSV.read(fn)
 

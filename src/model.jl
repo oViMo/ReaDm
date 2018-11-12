@@ -184,7 +184,7 @@ function optimize(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,conti
 		opt()
 		zero_grad!(F)
 		if t % 10 == 0
-			print("t = ",t,"\t L = ",L.data,"\r")
+			print("t = ",t,"\t s = ",ss,"\t L = ",L.data,"\n")
 		end
 
 	end
