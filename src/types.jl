@@ -166,7 +166,10 @@ end
 
 function (a::Dense_mult)(x)
   W, b, σ = a.W, a.b, a.σ
-  P = foldl((x,y)->x .+ (y[1]*y[2]),zip(W,x),init=0.0)
+  P = W[1]*x[1]
+  for k in 2:length(W)
+	  P = P .+ W[k]*x[k]
+  end
   σ.(P .+ b)
 end
 
@@ -200,7 +203,10 @@ end
 function (m::GRUCell_mult)(h, x)
   b, o = m.b, size(h, 1)
   gh = m.Wh*h
-  gx = foldl((x,y)->x .+ (y[1]*y[2]),zip(m.Wi,x),init=0.0)
+  gx = m.Wi[1]*x[1]
+  for k in 2:length(x)
+	  gx = gx .+ m.Wi[k]*x[k]
+  end
   r = σ.(gate(gx, o, 1) .+ gate(gh, o, 1) .+ gate(b, o, 1))
   z = σ.(gate(gx, o, 2) .+ gate(gh, o, 2) .+ gate(b, o, 2))
   h̃ = tanh.(gate(gx, o, 3) .+ r .* gate(gh, o, 3) .+ gate(b, o, 3))

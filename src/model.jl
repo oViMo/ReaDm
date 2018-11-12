@@ -78,6 +78,8 @@ function make_local_lik(fc,x,RT,C)
 
 	MainType = GPU ? Float32 : Float64
 	Zt = param(zeros(MainType,nnodes,nsim))
+	fc.G.state = repeat(fc.G.state,outer=(1,nsim))
+	
 	if GPU
 		Zt = Zt |> gpu
 	end
@@ -102,9 +104,9 @@ function make_local_lik(fc,x,RT,C)
 			θ = θ |> cpu
 		end
 		Lt 	= Tracker.collect([begin
-			τ	= GPU ? θ[4,t]*Float32(0.1) : θ[4,t] * 0.1
-			boundτ(ddm(θ[1,t],θ[2,t],θ[3,t],τ,rt,c),τ,rt)
-			end for t in 1:fc.nsim]')
+			τ	= GPU ? θ[4,k]*Float32(0.1) : θ[4,k] * 0.1
+			boundτ(ddm(θ[1,k],θ[2,k],θ[3,k],τ,rt,c),τ,rt)
+		end for k in 1:fc.nsim]')
 		if GPU
 			Lt = Lt |> gpu
 		end
