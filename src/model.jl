@@ -66,7 +66,7 @@ function (fc::FIVOChain)(RT,C,x)
 
 	for (t,(rt,c)) in enumerate(zip(RT,C))
 		h		= fc.G((Xt,Yt,Zt)) # map previous regressors, data and latent variable to hidden state of GRU
-		
+
 		Xt      	= Xs[:,t]
 		Yt		= Ys[:,t]
 		log_alpha_t,Zt 		= local_lik(h,fc,(Xt,Yt,Zt),nz,fc.GPU,rt,c)
@@ -83,14 +83,14 @@ end
 	μσtmp	= fc.hPrior(h)
 	μ 	= fc.hPriorμ(μσtmp)
 	σs 	= fc.hPriorσ(μσtmp)
-	L,z	= fc.Nz(ϕ)
+	nH,z	= fc.Nz(ϕ)
 	Lt	= normlpdf(z,μ,σs)
-	L	= L .+ Lt
+	L	= Lt .- nH
 	if GPU
 		z = gpu(z)
 	end
 	Zt	= fc.zPZ(z)
-	θ	= fc.zPθ((XYZ[2],Zt)) 
+	θ	= fc.zPθ((XYZ[2],Zt))
 	if GPU
 		θ = θ |> cpu
 	end

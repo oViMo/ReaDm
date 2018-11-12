@@ -3,6 +3,7 @@ using Flux: Tracker
 
 Pkg.activate("./")
 using RaeDm
+print("Pkg loaded!\n")
 include("load.jl")
 
 F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)
