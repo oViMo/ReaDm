@@ -72,14 +72,14 @@ function (fc::FIVOChain)(RT,C,x;
 
 			accumulated_logw 		= data(accumulated_logw)
 			local_lik.Zt 			= param(data(local_lik.Zt))
-			fc.G.state 				= param(data(fc.G.state))
+			fc.G.state 			= param(data(fc.G.state))
 		end
 
 		log_alpha_t 			= local_lik(fc,t,rt,c)
 
-		log_p_hat_t_summand 	= log_alpha_t .+ accumulated_logw
+		log_p_hat_t_summand 		= log_alpha_t .+ accumulated_logw
 		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
-		L 						= elinf(L + log_p_hat_t/ntrials)
+		L 				= elinf(L + log_p_hat_t/ntrials)
 		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
 		accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 	end
@@ -231,6 +231,6 @@ ddm(a::TrackedReal,v::TrackedReal,w::TrackedReal,τ::TrackedReal,rt::Float64,c::
 function normlpdf(z::S , μ::T , σs::T) where {S,T}
 	D = (z .- μ) ./ σs
 	TYPE = typeof(D[1])
-	M = D.*D ./2 .- log.(σs) .- TYPE(log2π/2)
+	M = D.*D ./2 .+ log.(σs) .+ TYPE(log2π/2)
 	return .- sum(M ,dims=1)
 end
