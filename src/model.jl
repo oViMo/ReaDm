@@ -34,11 +34,11 @@ function (fc::FIVOChain)(RT,C,x;
 	eval::Bool=false)
 	if eval
 		compute_intermediate_grad = false
-		fc_out 			  = deepcopy(fc)
-		fc_out.output.eval	  = true
-		fc_out.output.θ	  	  = [[]]
-		fc_out.output.log_w	  = [[]]
-		fc_out.output.L	  	  = 0.0
+		fc 		  = deepcopy(fc) # we leave fc untouched
+		fc.output.eval	  = true
+		fc.output.θ	  = [[]]
+		fc.output.log_w	  = [[]]
+		fc.output.L	  = 0.0
 	end
 	if fc.GPU
 		RT = Float32.(RT)
@@ -90,17 +90,17 @@ function (fc::FIVOChain)(RT,C,x;
 		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
 		L 				= elinf(L + log_p_hat_t/ntrials)
 		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
-		if fc_out.output.eval
-			push!(fc_out.output.log_w,data(log_p_hat_t_summand))
-			push!(fc_out.output.log_w_unnormalized,data(accumulated_logw))
+		if fc.output.eval
+			push!(fc.output.log_w,data(log_p_hat_t_summand))
+			push!(fc.output.log_w_unnormalized,data(accumulated_logw))
 		end
 		accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 	end
-	if fc_out.output.eval
-		fc_out.output.L = data(L)
+	if fc.output.eval
+		fc.output.L = data(L)
 	end
-	if fc_out.output.eval
-		return fc_out
+	if fc.output.eval
+		return fc
 	else
 		return L
 	end
@@ -159,8 +159,8 @@ function (local_lik::make_local_lik)(fc,t, rt ,c)
 		end
 
 		fc.G((Xt,Yt,Zt)) # map previous regressors, data and latent variable to hidden state of GRU
-		if fc_out.output.eval
-			push!(fc_out.output.θ,data(θ))
+		if fc.output.eval
+			push!(fc.output.θ,data(θ))
 		end
 
 		L .+ Lt
