@@ -34,7 +34,9 @@ function (fc::FIVOChain)(RT,C,x;
 	eval::Bool=false)
 	if eval
 		compute_intermediate_grad = false
-		fc 		  = deepcopy(fc) # we leave fc untouched
+		zero_grad!(fc)
+		reset!(fc.G)
+		fc 		  = FIVOChain(map(f->gpu(getfield(x,f)),fieldnames(FIVOChain)[1:end-2])...,FIVOout(),fc.GPU) # we leave fc untouched
 		fc.output.eval	  = true
 		fc.output.θ	  = [[]]
 		fc.output.log_w	  = [[]]
