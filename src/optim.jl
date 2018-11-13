@@ -2,7 +2,7 @@
 mutable struct optimize
 	fc_out
 	optimizer
-	function optimize(optimizer=Flux.ADAM(params(F), 0.001))
+	function optimize(optimizer)
 		return new([],optimizer)
 	end
 end

@@ -22,7 +22,7 @@ zero_grad!(F)
     zero_grad!(F)
 end
 
-opt = RaeDm.optimize()
+opt = RaeDm.optimize(Flux.ADAM(params(F), 0.001))
 opt = opt(F,RT,C,X,gradient_fetch_interval=interval)
 
 
