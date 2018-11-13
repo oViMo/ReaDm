@@ -30,7 +30,7 @@ const afun = elu
 ## Exec ##
 #========#
 function (fc::FIVOChain)(RT,C,x;
-	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing,
+	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing,single_update::Bool=false,
 	eval::Bool=false)
 	if eval
 		compute_intermediate_grad = false
@@ -50,6 +50,11 @@ function (fc::FIVOChain)(RT,C,x;
 	if gradient_fetch_interval > 0
 		init = rand(1:gradient_fetch_interval)
 		seq_gradient_fetch_interval = init:gradient_fetch_interval:length(RT)
+		if single_update
+			opt_step = [rand(seq_gradient_fetch_interval)]
+		else
+			opt_step = seq_gradient_fetch_interval
+		end
 	else
 		seq_gradient_fetch_interval = length(RT)+1:length(RT)+1
 	end
@@ -75,7 +80,7 @@ function (fc::FIVOChain)(RT,C,x;
 		if t ∈ seq_gradient_fetch_interval
 #			print("stack grad at ",t,"\n")
 			# break dependency of the current log-lik on previous time steps
-			if compute_intermediate_grad
+			if compute_intermediate_grad && t ∈ opt_step
 				Tracker.back!(L)
 				opt_local()
 				L = data(L)
