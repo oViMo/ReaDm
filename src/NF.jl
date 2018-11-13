@@ -77,8 +77,7 @@ function NFfun(x,a,nz,nlayers,GPU=false)
 	EntropyComp = zeros(MainType,(1,size(x,2)))
 	r = send_effector(randn(MainType,(nz,size(x,2))))
 	z = μ .+ σ .* r
-	M = .- (OneHalf .* log.(σ) .+ log2πHalf)
-	EntropyComp = sum(M, dims=1)
+	EntropyComp = sum(.- log.(σ) .- log2πHalf .- OneHalf .* ( r .* r), dims=1)
 	for k in 1:nlayers
 		vw 	= getindex(x,a.idvw[k],:)
 		vu 	= getindex(x,a.idvu[k],:)

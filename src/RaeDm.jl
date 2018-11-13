@@ -10,12 +10,12 @@ macro mainDef(x)
         esc(y)
 end
 
-@mainDef isCu = haskey(ENV,"CUDA_HOME") || haskey(ENV,"CUDA_PATH")
+@mainDef isCu = (Base.find_package("CuArrays") != nothing)
 if isCu
     print("Using CUDA\n")
     using CuArrays
 end
-using Flux, ForwardDiff, DiffResults, StatsFuns, NNlib
+using Flux, ForwardDiff, DiffResults, StatsFuns, NNlib, Statistics
 using Flux.Tracker: TrackedReal, TrackedArray, track, @grad, data
 using StatsFuns: softplus
 import Flux: gpu, cpu
@@ -32,5 +32,5 @@ include("ndt.jl")
 
 
 include("model.jl")
-
+include("optim.jl")
 end # module
