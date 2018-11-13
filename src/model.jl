@@ -30,7 +30,16 @@ const afun = elu
 ## Exec ##
 #========#
 function (fc::FIVOChain)(RT,C,x;
-	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing)
+	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing,
+	eval::Bool=false)
+	if eval
+		compute_intermediate_grad = false
+		fc_out 			  = deepcopy(fc)
+		fc_out.output.eval	  = true
+		fc_out.output.θ	  	  = [[]]
+		fc_out.output.log_w	  = [[]]
+		fc_out.output.L	  	  = 0.0
+	end
 	if fc.GPU
 		RT = Float32.(RT)
 		C = Float32.(C)
@@ -81,9 +90,19 @@ function (fc::FIVOChain)(RT,C,x;
 		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
 		L 				= elinf(L + log_p_hat_t/ntrials)
 		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
+		if fc_out.output.eval
+			push!(fc_out.output.log_w,data(accumulated_logw))
+		end
 		accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 	end
-	L
+	if fc_out.output.eval
+		fc_out.output.L = data(L)
+	end
+	if fc_out.output.eval
+		return fc_out
+	else
+		return L
+	end
 end
 
 mutable struct make_local_lik
@@ -139,6 +158,9 @@ function (local_lik::make_local_lik)(fc,t, rt ,c)
 		end
 
 		fc.G((Xt,Yt,Zt)) # map previous regressors, data and latent variable to hidden state of GRU
+		if fc_out.output.eval
+			push!(fc_out.output.θ,data(θ))
+		end
 
 		L .+ Lt
 end
@@ -165,32 +187,6 @@ else
 end
 end
 
-function optimize(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,continuous_opt::Bool=true)
-	opt = Flux.ADAM(params(F), 0.001)
-
-	if continuous_opt
-		opt_local = ()->begin
-				opt()
-				zero_grad!(F)
-				end
-	else
-		opt_local = ()->nothing
-	end
-
-	for t in 1:1000
-		ss = rand(1:length(RT))
-		L = -F(RT[ss],C[ss],X[ss],gradient_fetch_interval=gradient_fetch_interval,opt_local=opt_local)
-		Tracker.back!(L)
-		opt()
-		zero_grad!(F)
-		if t % 10 == 0
-			print("t = ",t,"\t s = ",ss,"\t L = ",L.data,"\n")
-		end
-
-	end
-	print("\n")
-	return F
-end
 
 
 """

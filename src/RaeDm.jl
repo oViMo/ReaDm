@@ -32,5 +32,5 @@ include("ndt.jl")
 
 
 include("model.jl")
-
+include("optim.jl")
 end # module

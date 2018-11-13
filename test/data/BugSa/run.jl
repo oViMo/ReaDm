@@ -22,7 +22,8 @@ zero_grad!(F)
     zero_grad!(F)
 end
 
-RaeDm.optimize(F,RT,C,X,gradient_fetch_interval=interval)
+opt = RaeDm.optimize()
+opt = opt(F,RT,C,X,gradient_fetch_interval=interval)
 
 
 

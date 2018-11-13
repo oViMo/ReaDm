@@ -8,6 +8,16 @@ import Flux.Tracker: zero_grad!
 #		Z::T
 #		Y::T
 #	end
+
+mutable struct FIVOout
+	eval::Bool
+	θ::Array{AbstractArray,1}
+	log_w::Array{AbstractArray,1}
+	L
+	function FIVOout()
+		new(false,[[]],[[]],0.0)
+	end
+end
 struct FIVOChain{N,R}
 	Nz::N
 	G::R
@@ -25,6 +35,7 @@ struct FIVOChain{N,R}
 	nx::Int64
 	ny::Int64
 	nz::Int64
+	output::FIVOout
 	GPU::Bool
 
 	function FIVOChain(;nx::Int64=2,ny::Int64=2,nz::Int64=10,nlayers::Int64=4,nnodes::Int64=50,nsim::Int64=4,afun=elu)
@@ -47,10 +58,14 @@ struct FIVOChain{N,R}
 		# S = Particles(param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)),param(zeros(nnodes,nsim)))
 
 		new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,
-						   nsim,nnodes,nlayers,nx,ny,nz,false)
+						   nsim,nnodes,nlayers,nx,ny,nz,
+						   FIVOout(),
+						   false)
 	end
-	function FIVOChain(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz,GPU=false)
-		F = new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz,GPU)
+	function FIVOChain(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz,
+			   output=FIVOout(),
+			   GPU=false)
+		F = new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz,output,GPU)
 	end
 end
 gpu(x::FIVOChain) = FIVOChain(map(f->gpu(getfield(x,f)),fieldnames(FIVOChain)[1:end-1])...,true)
