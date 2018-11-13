@@ -15,7 +15,7 @@ if isCu
     print("Using CUDA\n")
     using CuArrays
 end
-using Flux, ForwardDiff, DiffResults, StatsFuns, NNlib
+using Flux, ForwardDiff, DiffResults, StatsFuns, NNlib, Statistics
 using Flux.Tracker: TrackedReal, TrackedArray, track, @grad, data
 using StatsFuns: softplus
 import Flux: gpu, cpu
