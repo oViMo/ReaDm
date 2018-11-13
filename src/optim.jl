@@ -28,7 +28,7 @@ function (OPT::optimize)(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=20
 			for ss in 1:length(RT)
 				push!(OPT.fc_out, F(RT[ss],C[ss],X[ss],eval=true))
 			end
-			print("t = ",t,"\t L = ",mean(map(x->x.L,OPT.fc_out)),"\n")
+			print("t = ",t,"\t L = ",mean(map(x->x.output.L,OPT.fc_out)),"\n")
 		end
 
 	end
