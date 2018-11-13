@@ -13,9 +13,10 @@ mutable struct FIVOout
 	eval::Bool
 	θ::Array{AbstractArray,1}
 	log_w::Array{AbstractArray,1}
+	log_w_unnormalized::Array{AbstractArray,1}
 	L
 	function FIVOout()
-		new(false,[[]],[[]],0.0)
+		new(false,[[]],[[]],[[]],0.0)
 	end
 end
 struct FIVOChain{N,R}

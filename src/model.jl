@@ -91,7 +91,8 @@ function (fc::FIVOChain)(RT,C,x;
 		L 				= elinf(L + log_p_hat_t/ntrials)
 		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
 		if fc_out.output.eval
-			push!(fc_out.output.log_w,data(accumulated_logw))
+			push!(fc_out.output.log_w,data(log_p_hat_t_summand))
+			push!(fc_out.output.log_w_unnormalized,data(accumulated_logw))
 		end
 		accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 	end
