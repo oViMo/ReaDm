@@ -49,14 +49,14 @@ function (fc::FIVOChain)(RT,C,x;
 	end
 	if gradient_fetch_interval > 0
 		init = rand(1:gradient_fetch_interval)
-		seq_gradient_fetch_interval = init:gradient_fetch_interval:length(RT)
+		likelihood_stack_grad_list = vcat(collect(init:gradient_fetch_interval:length(RT)),length(RT))
 		if single_update
-			opt_step = [rand(seq_gradient_fetch_interval)]
+			opt_step = [rand(likelihood_stack_grad_list)]
 		else
-			opt_step = seq_gradient_fetch_interval
+			opt_step = likelihood_stack_grad_list
 		end
 	else
-		seq_gradient_fetch_interval = length(RT)+1:length(RT)+1
+		likelihood_stack_grad_list = [length(RT)+1]
 	end
 	nsim	= fc.nsim
 	nnodes  = fc.nnodes
@@ -77,7 +77,7 @@ function (fc::FIVOChain)(RT,C,x;
 
 	local_lik = make_local_lik(fc,x,RT,C)
 	for (t,(rt,c)) in enumerate(zip(RT,C))
-		if t ∈ seq_gradient_fetch_interval
+		if t ∈ likelihood_stack_grad_list
 #			print("stack grad at ",t,"\n")
 			# break dependency of the current log-lik on previous time steps
 			if compute_intermediate_grad && t ∈ opt_step
