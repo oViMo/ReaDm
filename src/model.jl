@@ -81,7 +81,7 @@ function (fc::FIVOChain)(RT,C,x;
 #			print("stack grad at ",t,"\n")
 			# break dependency of the current log-lik on previous time steps
 			if compute_intermediate_grad && t ∈ opt_step
-				Tracker.back!(L)
+				Tracker.back!(-L)
 				opt_local()
 				L = data(L)
 			end
