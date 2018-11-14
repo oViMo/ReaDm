@@ -81,6 +81,8 @@ function (fc::FIVOChain)(RT,C,x;
 				opt_local()
 				local_lik.L = param(data(local_lik.L))
 				trials_since_last			= 0
+			elseif compute_intermediate_grad
+				local_lik.L = param(data(local_lik.L)) # reset L if we don't care about L so far
 			end
 			local_lik.accumulated_logw 		= param(data(local_lik.accumulated_logw))
 			local_lik.Zt 				= param(data(local_lik.Zt))
