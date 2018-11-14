@@ -6,7 +6,7 @@ mutable struct optimize
 		return new([],optimizer)
 	end
 end
-function (OPT::optimize)(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,continuous_opt::Bool=true,single_update::Bool=true)
+function (OPT::optimize)(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,continuous_opt::Bool=false,single_update::Bool=false)
 	opt = OPT.optimizer
 	if continuous_opt
 		opt_local = ()->begin
