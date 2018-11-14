@@ -14,7 +14,7 @@ mutable struct FIVOout
 	θ::Array{AbstractArray,1}
 	log_w::Array{AbstractArray,1}
 	log_w_unnormalized::Array{AbstractArray,1}
-	L
+	L::Real
 	function FIVOout()
 		new(false,[[]],[[]],[[]],0.0)
 	end
@@ -245,3 +245,42 @@ See [this article](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
 for a good overview of the internals.
 """
 GRU_mult(a...; ka...) = Recur(GRUCell_mult(a...; ka...))
+
+
+
+
+# local_lik carries the likelihood of each particle
+mutable struct make_local_lik
+	Xs::TrackedArray
+	Ys::TrackedArray
+	Zt::TrackedArray
+	log_alpha_t::TrackedArray
+	log_p_hat_t::TrackedReal
+	L::TrackedReal
+	accumulated_logw::TrackedArray
+	
+	function make_local_lik(fc,x,RT,C)
+		GPU = fc.GPU
+		nnodes = fc.nnodes
+		nsim = fc.nsim
+
+		# Fetch X's: latent representation of regressors
+		Xs = fc.xPX(hcat(x...))
+		# Fetch Y's: latent representation of data
+		Ys = fc.yPY([RT C]')
+
+		MainType = GPU ? Float32 : Float64
+		Zt = param(zeros(MainType,nnodes,nsim))
+		if GPU
+			Zt = Zt |> gpu
+		end
+		fc.G.state = repeat(fc.G.state,outer=(1,nsim))
+		
+		MainType = fc.GPU ? Float32 : Float64
+		accumulated_logw = param(-log(nsim) * ones(MainType,1,nsim))
+		fc.GPU && (accumulated_logw = gpu(accumulated_logw))
+		L = param(zero(MainType))
+		new(Xs,Ys,Zt,
+		    param(zeros(MainType,1,fc.nsim)),param(zero(MainType)),L,accumulated_logw)
+	end
+end

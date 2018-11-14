@@ -52,6 +52,7 @@ function (fc::FIVOChain)(RT,C,x;
 		likelihood_stack_grad_list = vcat(collect(init:gradient_fetch_interval:length(RT)),length(RT))
 		if single_update
 			opt_step = [rand(likelihood_stack_grad_list)]
+			@show opt_step
 		else
 			opt_step = likelihood_stack_grad_list
 		end
@@ -67,74 +68,59 @@ function (fc::FIVOChain)(RT,C,x;
 
 	reset!(fc.G)
 
-	ntrials = length(RT)
-	MainType = typeof(RT[1])
-	accumulated_logw = param(-log(nsim) * ones(MainType,1,nsim))
-	if fc.GPU
-		accumulated_logw = gpu(accumulated_logw)
-	end
-	L = zero(MainType)
 
 	local_lik = make_local_lik(fc,x,RT,C)
+	trials_since_last = 0
 	for (t,(rt,c)) in enumerate(zip(RT,C))
+		trials_since_last += 1
 		if t ∈ likelihood_stack_grad_list
 #			print("stack grad at ",t,"\n")
 			# break dependency of the current log-lik on previous time steps
 			if compute_intermediate_grad && t ∈ opt_step
-				Tracker.back!(-L)
+				Tracker.back!(-local_lik.L/trials_since_last)
 				opt_local()
-				L = data(L)
+				local_lik.L = param(data(local_lik.L))
+				trials_since_last			= 0
 			end
-
-			accumulated_logw 		= data(accumulated_logw)
-			local_lik.Zt 			= param(data(local_lik.Zt))
-			fc.G.state 			= param(data(fc.G.state))
+			local_lik.accumulated_logw 		= param(data(local_lik.accumulated_logw))
+			local_lik.Zt 				= param(data(local_lik.Zt))
+			fc.G.state 				= param(data(fc.G.state))
 		end
 
-		log_alpha_t 			= local_lik(fc,t,rt,c)
+		local_lik(fc,t,rt,c)
 
-		log_p_hat_t_summand 		= log_alpha_t .+ accumulated_logw
-		log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
-		L 				= elinf(L + log_p_hat_t/ntrials)
-		accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
-		if fc.output.eval
-			push!(fc.output.log_w,data(log_p_hat_t_summand))
-			push!(fc.output.log_w_unnormalized,data(accumulated_logw))
-		end
-		accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 	end
 	if fc.output.eval
-		fc.output.L = data(L)
+		fc.output.L = data(local_lik.L)
 	end
 	if fc.output.eval
 		return fc
 	else
-		return L
+		return local_lik.L/trials_since_last
 	end
 end
 
-mutable struct make_local_lik
-	Xs
-	Ys
-	Zt
-	function make_local_lik(fc,x,RT,C)
-		GPU = fc.GPU
-		nnodes = fc.nnodes
-		nsim = fc.nsim
+function compute_loss(local_lik,fc)
+log_alpha_t = local_lik.log_alpha_t
+log_p_hat_t = local_lik.log_p_hat_t
+accumulated_logw = local_lik.accumulated_logw
+L = local_lik.L
 
-		# Fetch X's: latent representation of regressors
-		Xs = fc.xPX(hcat(x...))
-		# Fetch Y's: latent representation of data
-		Ys = fc.yPY([RT C]')
+log_p_hat_t_summand 		= log_alpha_t .+ accumulated_logw
+log_p_hat_t 			= logsumexp_overflow(log_p_hat_t_summand)
+L 				= elinf(L + log_p_hat_t)
+accumulated_logw 		= log_p_hat_t_summand .- log_p_hat_t
+if fc.output.eval
+	push!(fc.output.log_w_unnormalized,data(log_p_hat_t_summand))
+	push!(fc.output.log_w,data(accumulated_logw))
+end
+accumulated_logw 		= resample(accumulated_logw,fc.G,local_lik,fc.GPU)
 
-		MainType = GPU ? Float32 : Float64
-		Zt = param(zeros(MainType,nnodes,nsim))
-		if GPU
-			Zt = Zt |> gpu
-		end
-		fc.G.state = repeat(fc.G.state,outer=(1,nsim))
-		new(Xs,Ys,Zt)
-	end
+local_lik.log_alpha_t = log_alpha_t
+local_lik.log_p_hat_t = log_p_hat_t
+local_lik.accumulated_logw = accumulated_logw
+local_lik.L = L
+nothing
 end
 function (local_lik::make_local_lik)(fc,t, rt ,c)
 		Xt,Yt = local_lik.Xs[:,t], local_lik.Ys[:,t]
@@ -170,7 +156,9 @@ function (local_lik::make_local_lik)(fc,t, rt ,c)
 			push!(fc.output.θ,data(θ))
 		end
 
-		L .+ Lt
+		local_lik.log_alpha_t = L .+ Lt
+		compute_loss(local_lik,fc)
+		nothing
 end
 function resample(accumulated_logw,G,local_lik,GPU)
 acc_logw_detach = copy(accumulated_logw.data)

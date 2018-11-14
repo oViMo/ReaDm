@@ -8,11 +8,11 @@ struct NF
 	nz::Int64
 	nlayers::Int64
 	np::Int64
-	idμ
-	idσ
-	idvw
-	idvu
-	idb
+	idμ::AbstractArray
+	idσ::AbstractArray
+	idvw::AbstractArray
+	idvu::AbstractArray
+	idb::AbstractArray
 	GPU::Bool
 	function NF(nz::Int64,nlayers::Int64)#,np::Int64)
 		id = 0
