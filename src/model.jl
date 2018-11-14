@@ -52,7 +52,6 @@ function (fc::FIVOChain)(RT,C,x;
 		likelihood_stack_grad_list = vcat(collect(init:gradient_fetch_interval:length(RT)),length(RT))
 		if single_update
 			opt_step = [rand(likelihood_stack_grad_list)]
-			@show opt_step
 		else
 			opt_step = likelihood_stack_grad_list
 		end
