@@ -6,7 +6,7 @@ mutable struct optimize
 		return new([],optimizer)
 	end
 end
-function (OPT::optimize)(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=200,continuous_opt::Bool=false,single_update::Bool=false)
+function (OPT::optimize)(F::FIVOChain,RT,C,X;continuous_opt::Bool=false,kwargs...)
 	opt = OPT.optimizer
 	if continuous_opt
 		opt_local = ()->begin
@@ -19,7 +19,7 @@ function (OPT::optimize)(F::FIVOChain,RT,C,X;gradient_fetch_interval::Integer=20
 
 	for t in 1:10000
 		ss = rand(1:length(RT))
-		L = -F(RT[ss],C[ss],X[ss],gradient_fetch_interval=gradient_fetch_interval,opt_local=opt_local,single_update=single_update)
+		L = -F(RT[ss],C[ss],X[ss],opt_local=opt_local;kwargs...)
 		if !continuous_opt
 			Tracker.back!(L)
 			opt()
