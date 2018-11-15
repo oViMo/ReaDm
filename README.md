@@ -69,11 +69,15 @@ The test/data/BugSa/load.jl script retrieves the data.
 
 A FIVOChain object is build by
 
-`F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)`
+```
+F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)
+```
 
 Then an optimizer is created with
 
-`opt = RaeDm.optimize(Flux.ADAM(params(F), 0.0001))`
+```
+opt = RaeDm.optimize(Flux.ADAM(params(F), 0.0001))
+```
 
 And then trained with
 
