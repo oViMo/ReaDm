@@ -11,30 +11,39 @@ Activate the package
 --------------------
 RaeDm is currently not a registered Julia package. 
 To use it, copy the git repo by executing
-`git clone https://github.com/vmoens/RaeDm.git`
-`git checkout dev`
+
+```
+git clone https://github.com/vmoens/RaeDm.git
+git checkout dev
+```
 
 Next, the package can be activated from julia by executing 
-`julia> using Pkg`
-`julia> Pkg.activate("./")`
-`julia> using RaeDm`
-
-I think you should use an
-`addr` element here instead
+```
+julia> using Pkg
+julia> Pkg.activate("./")
+julia> using RaeDm
+```
 
 Building a model
 ----------------
 A model can be built by calling the FIVOChain constructor:
-`FIVOChain(;nx::Int64=2,ny::Int64=2,nz::Int64=10,nlayers::Int64=0,nnodes::Int64=50,nsim::Int64=4,afun=elu)`
+```
+FIVOChain(;nx::Int64=2,ny::Int64=2,nz::Int64=10,nlayers::Int64=0,nnodes::Int64=50,nsim::Int64=4,afun=elu)
+```
 where `nx` is the length of the regressor vector, `ny` should be 2 (RT and choices) and therefore left unchanged, `nz` is the size of the latent space.
 
 `nlayers` is the number of layers of the Normalizing flow (if 0 no NF is used and the approximate posterior is spherical).
 
 `nnodes` the number of nodes for both the feedforward layers and the RNN (GRU is used by default but LSTM could be used too without much effort), `nsim` the number of particles, and  `afun` is the activation function.
 
-`F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)` creates an instance of FIVOChain that can be used in the following way:
-`L = F(RT,C,X;
-gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing,single_update::Bool=fa    lse, eval::Bool=false`
+```
+F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)
+```
+creates an instance of FIVOChain that can be used in the following way:
+```
+L = F(RT,C,X;
+gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing,single_update::Bool=fa   lse, eval::Bool=false)
+```
 
 
 `gradient_fetch_interval` indicates at which interval the gradient should be computed (i.e. where the likelihood has to be detached from past values of the latent variables and hidden layer). If <= 0, the gradient is computed without discontinuity.
@@ -77,3 +86,5 @@ After that, we can retrieve the simulated particled (weights and variables) by e
    push!(OPT.fc_out, F(RT[ss],C[ss],X[ss],eval=true))
  end
 ```
+
+
