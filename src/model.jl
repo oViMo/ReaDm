@@ -56,6 +56,7 @@ function (fc::FIVOChain)(RT,C,x;
 			opt_step = likelihood_stack_grad_list
 		end
 	else
+		gradient_fetch_interval = length(RT)
 		likelihood_stack_grad_list = [length(RT)+1]
 	end
 	nsim	= fc.nsim
@@ -76,10 +77,11 @@ function (fc::FIVOChain)(RT,C,x;
 #			print("stack grad at ",t,"\n")
 			# break dependency of the current log-lik on previous time steps
 			if compute_intermediate_grad && t ∈ opt_step
-				Tracker.back!(-local_lik.L/trials_since_last)
+				Lp = -local_lik.L/gradient_fetch_interval
+				Tracker.back!(Lp)
 				opt_local()
 				local_lik.L = param(data(local_lik.L))
-				trials_since_last			= 0
+				trials_since_last = 0
 			elseif compute_intermediate_grad
 				local_lik.L = param(data(local_lik.L)) # reset L if we don't care about L so far
 			end
@@ -87,9 +89,7 @@ function (fc::FIVOChain)(RT,C,x;
 			local_lik.Zt 				= param(data(local_lik.Zt))
 			fc.G.state 				= param(data(fc.G.state))
 		end
-
 		local_lik(fc,t,rt,c)
-
 	end
 	if fc.output.eval
 		fc.output.L = data(local_lik.L)
@@ -97,7 +97,7 @@ function (fc::FIVOChain)(RT,C,x;
 	if fc.output.eval
 		return fc
 	else
-		return local_lik.L/trials_since_last
+		return -local_lik.L/trials_since_last
 	end
 end
 

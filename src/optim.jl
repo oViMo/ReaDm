@@ -19,7 +19,7 @@ function (OPT::optimize)(F::FIVOChain,RT,C,X;continuous_opt::Bool=true,niter=100
 
 	for t in 1:niter
 		ss = rand(1:length(RT))
-		L = -F(RT[ss],C[ss],X[ss],opt_local=opt_local;kwargs...)
+		L = F(RT[ss],C[ss],X[ss],opt_local=opt_local;kwargs...)
 		if !continuous_opt
 			Tracker.back!(L)
 			opt()
