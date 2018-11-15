@@ -81,7 +81,9 @@ opt = RaeDm.optimize(Flux.ADAM(params(F), 0.0001))
 
 And then trained with
 
-`opt = opt(F,RT,C,X,gradient_fetch_interval=interval,compute_intermediate_grad=true,single_update=true,continuous_opt=false)`
+```
+opt = opt(F,RT,C,X,gradient_fetch_interval=interval,compute_intermediate_grad=true,single_update=true,continuous_opt=false)
+```
 
 After that, we can retrieve the simulated particled (weights and variables) by executing
 ```
