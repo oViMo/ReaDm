@@ -97,7 +97,7 @@ function (fc::FIVOChain)(RT,C,x;
 	if fc.output.eval
 		return fc
 	else
-		return -local_lik.L/trials_since_last
+		return -local_lik.L/length(RT)
 	end
 end
 
