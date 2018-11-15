@@ -19,6 +19,8 @@ Next, the package can be activated from julia by executing
 `<julia> Pkg.activate("./")>`
 `<julia> using RaeDm>`
 
+I think you should use an
+`<addr>` element here instead
 
 Building a model
 ----------------
