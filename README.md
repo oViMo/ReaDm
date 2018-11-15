@@ -81,9 +81,9 @@ And then trained with
 
 After that, we can retrieve the simulated particled (weights and variables) by executing
 ```
- OPT.fc_out = []
+ fc_out = []
  for ss in 1:length(RT)
-   push!(OPT.fc_out, F(RT[ss],C[ss],X[ss],eval=true))
+   push!(fc_out, F(RT[ss],C[ss],X[ss],eval=true))
  end
 ```
 
