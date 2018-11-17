@@ -13,7 +13,12 @@ end
 @mainDef isCu = (Base.find_package("CuArrays") != nothing)
 if isCu
     print("Using CUDA\n")
-    using CuArrays
+    try
+    	using CuArrays
+    catch
+ 	@warn "failed to load cuda"
+	isCu=false
+    end
 end
 using Flux, ForwardDiff, DiffResults, StatsFuns, NNlib, Statistics
 using Flux.Tracker: TrackedReal, TrackedArray, track, @grad, data
