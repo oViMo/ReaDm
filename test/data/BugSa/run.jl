@@ -29,7 +29,7 @@ print("single update\n")
 @time begin
 	L = F(RT[1],C[1],X[1],gradient_fetch_interval=interval,compute_intermediate_grad=true,single_update=true)
 end
-opt = RaeDm.optimize(Flux.ADAM(params(F), 0.0001))
+opt = RaeDm.optimize(Flux.ADAM(params(F), 0.00001))
 opt = opt(F,RT,C,X,gradient_fetch_interval=interval,compute_intermediate_grad=true,single_update=true,continuous_opt=false)
 
 
