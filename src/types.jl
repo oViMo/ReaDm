@@ -51,7 +51,7 @@ struct FIVOChain{N,R}
 
 		zPθ	= Chain(Dense_mult((nnodes,nnodes),nnodes,afun),
 				Dense(nnodes,nnodes,afun),Dense(nnodes,4))
-		zPθ[end].b = param(setindex!(zeros(4),-1.0,4))
+		zPθ[end].b.data = setindex!(zeros(4),-1.0,4)
 
 		hPprior = Dense(nnodes,nnodes,afun)
 		hPpriorμ = Dense(nnodes,nz)
