@@ -16,6 +16,11 @@ for ss in 1:24
 	rt2[isnan.(rt2)] = csvs.TimeOut2[isnan.(rt2)]
 	rt = vec(hcat(rt1,rt2)')
 	c = vec(hcat(csvs.ChA1,csvs.ChA2)')
+	for i,cc in enumerate(c)
+		if cc==2.0
+			c[i] = -1.0
+		end
+	end
 
 	x_tuple = (vec(hcat(csvs.A1,csvs.A2)'), # instructions
 		   vec(hcat(csvs.Avoid,csvs.Avoid)), # avoided
