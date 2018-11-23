@@ -42,7 +42,7 @@ optim = try
 	Adafvf(params(F))
 catch
 	@warn "Unable to find AdaFVF. Until a registered version is available, AdaFVF can be found on https://github.com/vmoens/AdaFVF.jl"
-	Flux.ADAM(params(F), 0.0001)
+	Flux.ADAM(params(F), 0.001)
 end
 opt = RaeDm.optimize(optim)
 opt = opt(F,RT,C,X,gradient_fetch_interval=interval,compute_intermediate_grad=true,single_update=true,continuous_opt=false)
