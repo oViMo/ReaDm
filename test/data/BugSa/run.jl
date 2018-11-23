@@ -40,6 +40,7 @@ try
 	using AdaFVF
 	optim = Adafvf(params(F))
 catch
+	@warn "Unable to load AdaFVF. Until a registered version is available, AdaFVF can be found on https://github.com/vmoens/AdaFVF.jl"
 	optim = Flux.ADAM(params(F), 0.0001)
 end
 opt = RaeDm.optimize(optim)
