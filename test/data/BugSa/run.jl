@@ -1,8 +1,14 @@
 using Pkg, Flux
 using Flux: Tracker
 
-Pkg.activate("./")
-using RaeDm
+try
+	using RaeDm
+catch
+	@warn "RaeDm should be added to your register"
+	Pkg.activate("./")
+	Pkg.instantiate()
+	using RaeDm
+end
 print("Pkg loaded!\n")
 include("load.jl")
 
