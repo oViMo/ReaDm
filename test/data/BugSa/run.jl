@@ -36,12 +36,13 @@ print("single update\n")
 	L = F(RT[1],C[1],X[1],gradient_fetch_interval=interval,compute_intermediate_grad=true,single_update=true)
 end
 
-try
+
+optim = try
 	using AdaFVF
-	optim = Adafvf(params(F))
+	Adafvf(params(F))
 catch
 	@warn "Unable to load AdaFVF. Until a registered version is available, AdaFVF can be found on https://github.com/vmoens/AdaFVF.jl"
-	optim = Flux.ADAM(params(F), 0.0001)
+	Flux.ADAM(params(F), 0.0001)
 end
 opt = RaeDm.optimize(optim)
 opt = opt(F,RT,C,X,gradient_fetch_interval=interval,compute_intermediate_grad=true,single_update=true,continuous_opt=false)
