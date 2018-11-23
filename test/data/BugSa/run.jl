@@ -11,7 +11,8 @@ catch
 end
 print("Pkg loaded!\n")
 include("load.jl")
-
+using Random
+Random.seed!(1)
 F = FIVOChain(nlayers=0,nx=length(X[1][1]),nsim=8)
 
 Fg = gpu(F)
@@ -38,10 +39,9 @@ end
 
 
 optim = try
-	using AdaFVF
 	Adafvf(params(F))
 catch
-	@warn "Unable to load AdaFVF. Until a registered version is available, AdaFVF can be found on https://github.com/vmoens/AdaFVF.jl"
+	@warn "Unable to find AdaFVF. Until a registered version is available, AdaFVF can be found on https://github.com/vmoens/AdaFVF.jl"
 	Flux.ADAM(params(F), 0.0001)
 end
 opt = RaeDm.optimize(optim)
