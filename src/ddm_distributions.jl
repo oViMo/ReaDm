@@ -144,7 +144,7 @@ V = V*exp(-v*a*w-.5v^2*t - 2log(a)+1.8378770664093453)
 return P - (isfinite(V) ? V : zero(V))
 end
 function DDM_lpdf(a,v::T,w,t0,rt,c) where {T}
-	DDM_lpdf(a,v,w,t0,convert(T,rt),convert(T,c))
+	DDM_lpdf(a, v, w, t0, convert(T,rt), convert(T,c))
 end
 function DDM_lpdf(a::T,v::T,w::T,t0::T,rt::T,c::T) where {T}
 @assert c==one(c) || c==-one(c)
@@ -153,7 +153,7 @@ w = -c*w
 a = DDM_mapa(a)
 w = DDM_logistic(w)
 rt = rt-t0
-return rt>0 ? (ddm_p0(a,v,w,rt) + ddm_p1(a,w,rt)) : (-floatmax(T))
+return rt>zero(rt) ? (ddm_p0(a,v,w,rt) + ddm_p1(a,w,rt)) : (-floatmax(T))
 end
 #function DDM_lpdf_notape(a,v,w,t0,rt,c)
 #v = -c*v
@@ -189,11 +189,11 @@ function ddm_p1(a::T,w::T,t::T)::T where T
 #T0=0.2145535792511116
 #n=6
 #m=3
-T0=0.2397217965550664
+T0=T(0.2397217965550664)
 n=8
 m=4
 aa=a*a
-V=if t-T0*aa < 0
+V=if t-T0*aa < zero(t)
 	ddm_logpdf_full_common1_GRAD(a,t,w,aa,m)
 else
 	ddm_logpdf_full_common2_GRAD(a,t,w,aa,n)
@@ -209,7 +209,7 @@ Flux.Tracker.TrackedReal{Float32}(x::Flux.Tracker.TrackedReal) = Float32.(x)
 Flux.Tracker.TrackedReal{Float64}(x::Flux.Tracker.TrackedReal) = Float64.(x)
 
 function ddm_logpdf_full_common1_GRAD(a::T,t::T,w::T,aa::T,m::Int64)::T where {X,Y,T<:Union{Float64,Tracker.TrackedReal{Float64},ForwardDiff.Dual{X,Float64,Y}}}
-Ot    = 1.0/t
+Ot    = one(t)/t
 Ot_aa = Ot*aa
 cst   = .5Ot_aa*w*w
 
@@ -220,6 +220,9 @@ for k2=-m:m
 end
 return logmax(V) + 3log(a) - 1.5log(t) - 9.189385332046727e-1 - cst
 end
+
+
+
 function ddm_logpdf_full_common1_GRAD(a::T,t::T,w::T,aa::T,m::Int64)::T where {X,Y,T<:Union{Float32,Tracker.TrackedReal{Float32},ForwardDiff.Dual{X,Float32,Y}}}
 Ot    = 1.0f0/t
 Ot_aa = Ot*aa
@@ -244,6 +247,9 @@ for k=1:n
 end
 return logmax(V) - cst + 1.1447298858494
 end
+
+
+
 function ddm_logpdf_full_common2_GRAD(a::T,t::T,w::T,aa::T,n::Int64)::T where {X,Y,T<:Union{Float32,Tracker.TrackedReal{Float32},ForwardDiff.Dual{X,Float32,Y}}}
 # Navarro and Fuss 2009
 cst = t*4.934802f0/aa # Numerical underflow
@@ -253,6 +259,8 @@ for k=1:n
 end
 return logmax(V) - cst + 1.1447299f0
 end
+
+
 
 function ddm_avgrt(a,v,w,t0;s=1)
 # Grasman 2009

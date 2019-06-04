@@ -213,8 +213,11 @@ mutable struct GRUCell_mult{A,V,K}
 end
 
 function GRUCell_mult(in::NTuple{N,Integer}, out; init = glorot_uniform) where N
-    GRUCell_mult( map(in->param(init(out*3, in)),in), param(init(out*3, out)),
-          param(zeros(out*3)), param(init(out)))
+    GRUCell_mult( 
+		 map(in->param(init(out*3, in)), in), 
+		 param(init(out*3, out)),
+          	param(zeros(Float32, out*3)), 
+	        param(init(out)))
 end
 
 function (m::GRUCell_mult)(h, x)

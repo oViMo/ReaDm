@@ -3,9 +3,23 @@ const afun = elu
 
 ## Exec ##
 #========#
-function (fc::FIVOChain)(RT,C,x;
-	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false, opt_local=()->nothing, single_update::Bool=false,
-	eval::Bool=false, isCuda = isCuda[])
+
+function (fc::FIVOChain)(RT::Array{Float64,1},
+			 C,
+			 x,
+			 args... ; kwargs...)
+	@warn "Data should be cast to Float32 for efficiency"
+	return fc(Float32.(RT), Float32.(C), map(_x->Float32.(_x), x), args... ; kwargs...)
+end
+function (fc::FIVOChain)(
+			 RT::Array{Float32,1},
+			 C::Array{Float32,1},
+			 x::Array{Array{Float32,1},1};
+			gradient_fetch_interval::Integer = -1, 
+			compute_intermediate_grad::Bool = false, 
+			opt_local=()->nothing, 
+			single_update::Bool=false,
+			eval::Bool=false, isCuda = isCuda[])
 	if eval
 		compute_intermediate_grad = false
 		zero_grad!(fc)
@@ -14,14 +28,12 @@ function (fc::FIVOChain)(RT,C,x;
 		fc.output.eval	  = true
 		fc.output.θ	  = [[]]
 		fc.output.log_w	  = [[]]
-		fc.output.L	  = 0.0
+		fc.output.L	  = 0.0f0
 	end
-	RT = Float32.(RT)
-	C = Float32.(C)
-	x = broadcast(_x->Float32.(_x), x)
 	if isCuda
 		x = cu.(x)
 	end
+
 	if gradient_fetch_interval > 0
 		init = rand(1:gradient_fetch_interval)
 		likelihood_stack_grad_list = vcat(collect(init:gradient_fetch_interval:length(RT)),length(RT))
@@ -46,6 +58,7 @@ function (fc::FIVOChain)(RT,C,x;
 
 	local_lik = make_local_lik(fc,x,RT,C)
 	trials_since_last = 0
+
 	for (t,(rt,c)) in enumerate(zip(RT,C))
 		trials_since_last += 1
 		if t ∈ likelihood_stack_grad_list
@@ -120,7 +133,7 @@ function (local_lik::make_local_lik)(fc,t, rt ,c)
 			θ = θ |> cpu
 		end
 		Lt 	= Tracker.collect([begin
-			τ	= GPU ? θ[4,k]*Float32(0.1) : θ[4,k] * 0.1
+			τ	= θ[4,k]*0.1f0
 			boundτ(ddm(θ[1,k],θ[2,k],θ[3,k],τ,rt,c),τ,rt)
 		end for k in 1:fc.nsim]')
 		if GPU
@@ -171,7 +184,7 @@ function ddm(a,v,w,τ,rt,c)
 	if abs(c) == one(c)
 		return SSM.DDM_lpdf(a,v,w,τ,rt,c)
 	else
-		return log(boundcdf(1.0 - (SSM.DDM_cdf(a,v,w,τ,rt,1.0) + SSM.DDM_cdf(a,v,w,τ,rt,-1.0))))
+		return log(boundcdf(1.0f0 - (SSM.DDM_cdf(a,v,w,τ,rt,1.0f0) + SSM.DDM_cdf(a,v,w,τ,rt,-1.0f0))))
 	end
 end
 const ddmv(x) = ddm(x...)
@@ -181,8 +194,12 @@ const cfg6_float32 = ForwardDiff.GradientConfig(ddmv, Float32[1.0;2.0;0.0;0.0;1.
 
 @grad function ddm(a::Union{Flux.Tracker.TrackedReal{Float32},Float32},v,w,τ,rt,c)
 	ForwardDiff.gradient!(ddmgrad_float32,ddmv,data.([a,v,w,τ,rt,c]),cfg6_float32)
-	G = ∇->(ddmgrad_float32.derivs[1][1]*∇,ddmgrad_float32.derivs[1][2]*∇,ddmgrad_float32.derivs[1][3]*∇,ddmgrad_float32.derivs[1][4]*∇,∇*0,∇*0)
-	return ddmgrad_float32.value,G
+	G = ∇->(ddmgrad_float32.derivs[1][1]*∇, 
+		ddmgrad_float32.derivs[1][2]*∇, 
+		ddmgrad_float32.derivs[1][3]*∇, 
+		ddmgrad_float32.derivs[1][4]*∇, 
+		∇*0, ∇*0)
+	return ddmgrad_float32.value, G
 end
 
 ddm(a::TrackedReal,v::TrackedReal,w::TrackedReal,τ::TrackedReal,rt::Float32,c::Float32) = Tracker.track(ddm,a,v,w,τ,rt,c)
