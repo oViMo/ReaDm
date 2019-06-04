@@ -19,6 +19,10 @@ mutable struct FIVOout
 		new(false,[[]],[[]],[[]],0.0)
 	end
 end
+
+
+# FIVO
+#
 struct FIVOChain{N,R}
 	Nz::N
 	G::R
@@ -51,7 +55,7 @@ struct FIVOChain{N,R}
 
 		zPθ	= Chain(Dense_mult((nnodes,nnodes),nnodes,afun),
 				Dense(nnodes,nnodes,afun),Dense(nnodes,4))
-		zPθ[end].b.data .= setindex!(zeros(4),-1.0,4)
+		zPθ[end].b.data .= setindex!(zeros(4), -1.0f0, 4)
 
 		hPprior = Dense(nnodes,nnodes,afun)
 		hPpriorμ = Dense(nnodes,nz)
@@ -67,7 +71,7 @@ struct FIVOChain{N,R}
 	function FIVOChain(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz,
 			   output=FIVOout(),
 			   GPU=false)
-		F = new{NF,Flux.Recur}(Nz,G,yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz,output,GPU)
+		F = new{NF,Flux.Recur}(Nz, G, yPY,zPZ,xPX,Pϕ,zPθ,hPprior,hPpriorμ,hPpriorσ,nsim,nnodes,nlayers,nx,ny,nz,output,GPU)
 	end
 end
 gpu(x::FIVOChain) = FIVOChain(map(f->gpu(getfield(x,f)),fieldnames(FIVOChain)[1:end-1])...,true)
@@ -83,6 +87,23 @@ function reshape_in_tcn(x::AbstractArray{<:Real,2})
 	permutedims(reshape(x,(size(x)...,1,1)),(3,1,2,4))
 end
 @treelike FIVOChain
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# TCN
+
 struct TCNChain
 	CX::Flux.Chain
 	CY::Flux.Chain
@@ -159,10 +180,10 @@ as an `in × N` matrix. The out `y` will be a vector or batch of length `out`.
 ```julia
 julia> d = Dense_mult((5,8), 2)
 Dense_mult((5,8), 2)
-julia> d(rand(5),randn(8))
+julia> d(rand(Float32, 5),randn(Float32, 8))
 Tracked 2-element Array{Float32,1}:
-  0.00257447
-  -0.00449443
+  0.00257447f0
+  -0.00449443f0
 ```
 """
 struct Dense_mult{F,S,T}
@@ -249,7 +270,6 @@ See [this article](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
 for a good overview of the internals.
 """
 GRU_mult(a...; ka...) = Recur(GRUCell_mult(a...; ka...))
-
 
 
 

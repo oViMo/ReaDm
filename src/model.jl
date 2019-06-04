@@ -59,6 +59,7 @@ function (fc::FIVOChain)(
 	local_lik = make_local_lik(fc,x,RT,C)
 	trials_since_last = 0
 
+	# Loop over trials
 	for (t,(rt,c)) in enumerate(zip(RT,C))
 		trials_since_last += 1
 		if t ∈ likelihood_stack_grad_list
@@ -79,6 +80,7 @@ function (fc::FIVOChain)(
 		end
 		local_lik(fc,t,rt,c)
 	end
+
 	if fc.output.eval
 		fc.output.L = data(local_lik.L)
 	end
@@ -158,7 +160,7 @@ if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
 		print("\nResampling\n")
 	end
 	a 			= findfirst(cumsum(exp.(acc_logw_detach[:]),dims=1) .> rand())
-	accumulated_logw 	= -log(N)*param(ones(1,N))
+	accumulated_logw 	= -log(N)*param(ones(Float32, 1,N))
 	local_lik.Zt 			= repeat(local_lik.Zt[:,a],outer=(1,N))
 	h 			= repeat(h[:,a],outer=(1,N))
 	G.state 		= h # in place
