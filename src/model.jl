@@ -30,7 +30,7 @@ const afun = elu
 ## Exec ##
 #========#
 function (fc::FIVOChain)(RT,C,x;
-	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false,opt_local=()->nothing,single_update::Bool=false,
+	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false, opt_local=()->nothing, single_update::Bool=false,
 	eval::Bool=false)
 	if eval
 		compute_intermediate_grad = false
@@ -168,7 +168,6 @@ if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
 	h = G.state
 	if DEBUG
 		print("\nResampling\n")
-		##@show  acc_logw_detach
 	end
 	a 			= findfirst(cumsum(exp.(acc_logw_detach[:]),dims=1) .> rand())
 	accumulated_logw 	= -log(N)*param(ones(1,N))
