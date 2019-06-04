@@ -1,16 +1,16 @@
 const DEBUG = true
 #const isCuda = false
 
-using RaeDm
+using RaeDm, Flux
 print("RaeDm loaded\n")
 using Flux: Tracker
 
 
 nt = 1000 # trials
 ns = 10 # subjects
-RT = [1 .+ rand(nt) for s in 1:ns]# reaction times
-C = [rand([-1,1],nt) for s in 1:ns] # choices, 1 or 0
-X = [[randn(2) for t in 1:nt] for s in 1:ns] # regressors
+RT = [1.0f0 .+ rand(Float32, nt) for s in 1:ns]# reaction times
+C = [rand(Float32[-1,1,0], nt) for s in 1:ns] # choices, 1 or 0
+X = [[randn(Float32, 2) for t in 1:nt] for s in 1:ns] # regressors
 
 print("Creating FIVO object\n")
 F = RaeDm.FIVOChain(nsim=8,nlayers=0)
@@ -40,6 +40,12 @@ print("Time:\n")
     L = F(RT[2],C[2],X[2])
     Tracker.back!(L)
 end
+
+print("Gradients:\n")
+for _p in params(F)
+	@show sum(abs2, _p.tracker.grad)
+end
+
 zero_grad!(F)
 
 if RaeDm.isCuda[]
