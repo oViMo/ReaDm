@@ -1,7 +1,7 @@
 module RaeDm
 
 
-isCu = Ref[false]
+isCu = Ref(false)
 CUDA(set=true) = (isCu[] = set)
 if isCu[]
     print("Using CUDA\n")
@@ -20,7 +20,7 @@ import Flux: gpu, cpu
 export FIVOChain, zero_grad!, gpu, cpu,optimize
 include("miscelaneous.jl")
 
-@mainDef DEBUG=false
+DEBUG = Ref(false)
 
 include("ddm_distributions.jl")
 include("types.jl")

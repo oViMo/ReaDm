@@ -1,37 +1,11 @@
 #@mainDef afun = elu
 const afun = elu
 
-## Cuda ##
-#========#
-# if isCu
-# 	#import Base: exp,log1p
-# 	#import StatsFuns:log1pexp,softplus
-# 	const MainType = Float32
-# 	function send_effector(x::AbstractArray)
-# 		isempty(x) ? x : (x |> gpu)
-# 	end
-# 	function send_effector(x)
-# 		x |> gpu
-# 	end
-# 	function send_effector(x::T) where {T<:Union{FIVOChain,Flux.Chain,Flux.Dense}}
-# 		mapleaves(cu,x)
-# 	end
-# 	function send_effector(x::T) where {T<:Union{AbstractArray{<:AbstractArray},Tuple,NamedTuple}}
-# 		map(send_effector,x)
-# 	end
-# else
-# 	print("running on CPU\n")
-# 	const MainType = Float64
-# 	function send_effector(x)
-# 		x
-# 	end
-# end
-
 ## Exec ##
 #========#
 function (fc::FIVOChain)(RT,C,x;
 	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false, opt_local=()->nothing, single_update::Bool=false,
-	eval::Bool=false)
+	eval::Bool=false, isCu = isCu[])
 	if eval
 		compute_intermediate_grad = false
 		zero_grad!(fc)
@@ -42,9 +16,10 @@ function (fc::FIVOChain)(RT,C,x;
 		fc.output.log_w	  = [[]]
 		fc.output.L	  = 0.0
 	end
-	if fc.GPU
-		RT = Float32.(RT)
-		C = Float32.(C)
+	RT = Float32.(RT)
+	C = Float32.(C)
+	x = broadcast(_x->Float32.(_x), x)
+	if isCu
 		x = cu.(x)
 	end
 	if gradient_fetch_interval > 0
@@ -166,7 +141,7 @@ acc_logw_detach = copy(accumulated_logw.data)
 N = length(acc_logw_detach)
 if -logsumexp_overflow(2 * acc_logw_detach) < log(N)-log(2)
 	h = G.state
-	if DEBUG
+	if DEBUG[]
 		print("\nResampling\n")
 	end
 	a 			= findfirst(cumsum(exp.(acc_logw_detach[:]),dims=1) .> rand())
@@ -200,29 +175,20 @@ function ddm(a,v,w,τ,rt,c)
 	end
 end
 const ddmv(x) = ddm(x...)
-if isCu
-	const ddmgrad_float32 = DiffResults.GradientResult(Float32.(zeros(6)))
-	const cfg6_float32 = ForwardDiff.GradientConfig(ddmv, Float32.([1.0;2.0;0.0;0.0;1.0;1.0]), ForwardDiff.Chunk{6}());
-end
-const ddmgrad_float64 = DiffResults.GradientResult(zeros(6))
-const cfg6_float64 = ForwardDiff.GradientConfig(ddmv, [1.0;2.0;0.0;0.0;1.0;1.0], ForwardDiff.Chunk{6}());
+
+const ddmgrad_float32 = DiffResults.GradientResult(zeros(Float32, 6))
+const cfg6_float32 = ForwardDiff.GradientConfig(ddmv, Float32[1.0;2.0;0.0;0.0;1.0;1.0], ForwardDiff.Chunk{6}());
 
 @grad function ddm(a::Union{Flux.Tracker.TrackedReal{Float32},Float32},v,w,τ,rt,c)
 	ForwardDiff.gradient!(ddmgrad_float32,ddmv,data.([a,v,w,τ,rt,c]),cfg6_float32)
 	G = ∇->(ddmgrad_float32.derivs[1][1]*∇,ddmgrad_float32.derivs[1][2]*∇,ddmgrad_float32.derivs[1][3]*∇,ddmgrad_float32.derivs[1][4]*∇,∇*0,∇*0)
 	return ddmgrad_float32.value,G
 end
-@grad function ddm(a::Union{Flux.Tracker.TrackedReal{Float64},Float64},v,w,τ,rt,c)
-	ForwardDiff.gradient!(ddmgrad_float64,ddmv,data.([a,v,w,τ,rt,c]),cfg6_float64)
-	G = ∇->(ddmgrad_float64.derivs[1][1]*∇,ddmgrad_float64.derivs[1][2]*∇,ddmgrad_float64.derivs[1][3]*∇,ddmgrad_float64.derivs[1][4]*∇,∇*0,∇*0)
-	return ddmgrad_float64.value,G
-end
+
 ddm(a::TrackedReal,v::TrackedReal,w::TrackedReal,τ::TrackedReal,rt::Float32,c::Float32) = Tracker.track(ddm,a,v,w,τ,rt,c)
-ddm(a::TrackedReal,v::TrackedReal,w::TrackedReal,τ::TrackedReal,rt::Float64,c::Float64) = Tracker.track(ddm,a,v,w,τ,rt,c)
 
 function normlpdf(z::S , μ::T , σs::T) where {S,T}
 	D = (z .- μ) ./ σs
-	TYPE = typeof(D[1])
-	M = D.*D ./2 .+ log.(σs) .+ TYPE(log2π/2)
+	M = D.*D ./2 .+ log.(σs) .+ Float32(log2π/2)
 	return .- sum(M ,dims=1)
 end

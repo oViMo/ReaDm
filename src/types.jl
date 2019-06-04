@@ -160,7 +160,7 @@ as an `in × N` matrix. The out `y` will be a vector or batch of length `out`.
 julia> d = Dense_mult((5,8), 2)
 Dense_mult((5,8), 2)
 julia> d(rand(5),randn(8))
-Tracked 2-element Array{Float64,1}:
+Tracked 2-element Array{Float32,1}:
   0.00257447
   -0.00449443
 ```
@@ -270,18 +270,16 @@ mutable struct make_local_lik
 		# Fetch Y's: latent representation of data
 		Ys = fc.yPY([RT C]')
 
-		MainType = GPU ? Float32 : Float64
-		Zt = param(zeros(MainType,nnodes,nsim))
+		Zt = param(zeros(Float32,nnodes,nsim))
 		if GPU
 			Zt = Zt |> gpu
 		end
 		fc.G.state = repeat(fc.G.state,outer=(1,nsim))
 		
-		MainType = fc.GPU ? Float32 : Float64
-		accumulated_logw = param(-log(nsim) * ones(MainType,1,nsim))
+		accumulated_logw = param(-log(nsim) * ones(Float32,1,nsim))
 		fc.GPU && (accumulated_logw = gpu(accumulated_logw))
-		L = param(zero(MainType))
+		L = param(zero(Float32))
 		new(Xs,Ys,Zt,
-		    param(zeros(MainType,1,fc.nsim)),param(zero(MainType)),L,accumulated_logw)
+		    param(zeros(Float32,1,fc.nsim)),param(zero(Float32)),L,accumulated_logw)
 	end
 end
