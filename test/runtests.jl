@@ -1,5 +1,5 @@
 const DEBUG = true
-#const isCu = false
+#const isCuda = false
 
 using RaeDm
 print("RaeDm loaded\n")
@@ -14,12 +14,12 @@ X = [[randn(2) for t in 1:nt] for s in 1:ns] # regressors
 
 print("Creating FIVO object\n")
 F = RaeDm.FIVOChain(nsim=8,nlayers=0)
-if RaeDm.isCu
+if RaeDm.isCuda[]
     Fg = gpu(F)
 end
 
 
-if RaeDm.isCu
+if RaeDm.isCuda[]
     print("Loss (gpu):\n")
     L = Fg(RT[1],C[1],X[1])
     @show L
@@ -42,7 +42,7 @@ print("Time:\n")
 end
 zero_grad!(F)
 
-if RaeDm.isCu
+if RaeDm.isCuda[]
     print("Time (gpu):\n")
     @time begin
         L = Fg(RT[2],C[2],X[2])

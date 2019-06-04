@@ -1,15 +1,15 @@
 module RaeDm
 
 
-isCu = Ref(false)
-CUDA(set=true) = (isCu[] = set)
-if isCu[]
+isCuda = Ref(false)
+CUDA(set=true) = (isCuda[] = set)
+if isCuda[]
     print("Using CUDA\n")
     try
     	using CuArrays
     catch
  	@warn "failed to load cuda"
-	isCu[]=false
+	isCuda[]=false
     end
 end
 using Flux, ForwardDiff, DiffResults, StatsFuns, NNlib, Statistics

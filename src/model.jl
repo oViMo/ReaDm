@@ -5,7 +5,7 @@ const afun = elu
 #========#
 function (fc::FIVOChain)(RT,C,x;
 	gradient_fetch_interval::Integer = -1, compute_intermediate_grad::Bool = false, opt_local=()->nothing, single_update::Bool=false,
-	eval::Bool=false, isCu = isCu[])
+	eval::Bool=false, isCuda = isCuda[])
 	if eval
 		compute_intermediate_grad = false
 		zero_grad!(fc)
@@ -19,7 +19,7 @@ function (fc::FIVOChain)(RT,C,x;
 	RT = Float32.(RT)
 	C = Float32.(C)
 	x = broadcast(_x->Float32.(_x), x)
-	if isCu
+	if isCuda
 		x = cu.(x)
 	end
 	if gradient_fetch_interval > 0
